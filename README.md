@@ -1,6 +1,6 @@
 # molevoDrugDiscovery
 
-A graph-evolutionary drug discovery framework that optimises molecules against multi-parameter oracles using SELFIES-based mutation, BRICS fragmentation, and optional docking-guided selection. benchmarks are provided for the GuacaMol preset suite (via MolScore) and the SATURN docking-guided benchmark.
+An evolutionary drug discovery framework that optimises molecules against multi-parameter oracles using SELFIES-based mutation, BRICS fragmentation, and optional docking-guided selection. benchmarks are provided for the GuacaMol preset suite (via MolScore) and the SATURN docking-guided benchmark.
 
 ---
 
