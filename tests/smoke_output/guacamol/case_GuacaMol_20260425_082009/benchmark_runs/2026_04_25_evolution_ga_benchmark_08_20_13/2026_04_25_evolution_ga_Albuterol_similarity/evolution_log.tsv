@@ -1,0 +1,4 @@
+gen	valid_rate	mean_score	best_score_so_far	best_smiles	valid	pop
+0	100.000	0.180775	0.327869	CCOC(=O)c1ccccc1	8	8
+1	100.000	0.190379	0.327869	CCOC(=O)c1ccccc1	8	8
+2	100.000	0.271959	0.327869	CCOC(=O)c1ccc2cc1-2	8	8

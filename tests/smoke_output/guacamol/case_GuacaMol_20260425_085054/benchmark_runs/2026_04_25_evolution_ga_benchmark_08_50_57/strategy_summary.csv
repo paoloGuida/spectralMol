@@ -1,0 +1,2 @@
+strategy,benchmark,task,run_dir,score_column,budget,evaluated,generations,best_score,mean_top10,unique_molecules,elapsed_seconds
+evolution,GuacaMol,Albuterol_similarity,/Users/guidap/Documents/Codes/molevoDrugDiscovery/tests/smoke_output/guacamol/case_GuacaMol_20260425_085054/benchmark_runs/2026_04_25_evolution_ga_benchmark_08_50_57/2026_04_25_evolution_ga_Albuterol_similarity,single,50,24,2,0.32786884903907776,0.28793821930885316,24,0.11749792098999023

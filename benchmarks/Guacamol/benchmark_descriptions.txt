@@ -1,0 +1,47 @@
+MolScoreBenchmark preset descriptions
+====================================
+
+Source: summaries inferred from installed MolScore preset configs
+(`MolScoreBenchmark.presets`) and their scoring components.
+
+5HT2A_Docking
+- 2 docking/selectivity tasks for 5-HT2A objectives using rDock plus descriptor constraints.
+
+5HT2A_PhysChem
+- 5 tasks combining 5-HT2A activity prediction with physicochemical property and synthesizability controls.
+
+5HT2A_Selectivity
+- 6 selectivity tasks driven by PIDGIN predictors (e.g., 5-HT2A vs off-target profiles) plus descriptor constraints.
+
+GuacaMol
+- 20 standard GuacaMol goal-directed tasks (rediscovery, similarity, isomer, MPO, SMARTS/scaffold objectives).
+
+GuacaMol_Scaffold
+- 4 scaffold-focused GuacaMol tasks emphasizing scaffold matching, similarity, and property constraints.
+
+LibINVENT_Exp1
+- 2 LibINVENT-style tasks with decorated reaction/substructure constraints and DRD2-focused QSAR components.
+
+LinkINVENT_Exp3
+- 11 linker-design tasks with linker descriptor objectives (length/shape/property windows) and base molecular constraints.
+
+MolExp
+- 5 molecular extrapolation tasks (A2A/AP/BACE1/EGFR style setups) using similarity plus descriptor constraints.
+
+MolExpL
+- 5 MolExp-style tasks using mostly Levenshtein-based sequence similarity with descriptor constraints.
+
+MolExpL_baseline
+- 12 baseline MolExpL tasks (multiple seeds/splits per target) using Levenshtein similarity and descriptors.
+
+MolExp_baseline
+- 12 baseline MolExp tasks (multiple seeds/splits per target) using molecular similarity and descriptors.
+
+MolOpt
+- 23 molecule-optimization tasks, extending GuacaMol-like objectives with additional optimization/QSAR scenarios.
+
+MolOpt-CF
+- 23 MolOpt tasks with an added ChemistryFilter component (stricter chemistry validity/quality filtering).
+
+MolOpt-DF
+- 23 MolOpt tasks configured for diversity-filtered optimization (DF variant of MolOpt settings).

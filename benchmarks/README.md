@@ -1,0 +1,1 @@
+Benchmark folder: comparison with MolScore 

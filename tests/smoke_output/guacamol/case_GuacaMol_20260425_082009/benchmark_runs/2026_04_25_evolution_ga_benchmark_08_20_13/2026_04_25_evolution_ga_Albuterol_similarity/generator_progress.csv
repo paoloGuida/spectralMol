@@ -1,0 +1,3 @@
+generation,evaluated,batch_size,population_size,best_score,average_score,mean_top10,unique_molecules,stagnation_count,effective_tournament_k,effective_elite_fraction,effective_immigrant_fraction,diversity_fraction,mutation_steps,immigrant_offspring,crossover_offspring,fragment_replace_offspring,mutation_offspring
+1,16,8,8,0.32786884903907776,0.1855769082903862,0.21903241127729417,16,1,4,0.15,0.1,0.1,3,1,0,0,7
+2,24,8,8,0.32786884903907776,0.21437097464998564,0.28793821930885316,24,2,4,0.15,0.1,0.1,3,1,0,0,7
