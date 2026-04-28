@@ -412,6 +412,6 @@ fig.suptitle(
     fontsize=13, y=0.985,
 )
 
-out = Path("/home/claude/work/theta_to_molecule.png")
+out = Path("theta_to_molecule.png")
 fig.savefig(out, dpi=160, bbox_inches="tight")
 print(f"Saved: {out}")
