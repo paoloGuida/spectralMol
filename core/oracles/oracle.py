@@ -93,7 +93,7 @@ class Oracle:
         # In case all SMILES are repeats
         if len(new_smiles) > 0:
             # 3. Get the Mols for the new SMILES
-            new_mols = np.vectorize(Chem.MolFromSmiles)(new_smiles)
+            new_mols = np.asarray([Chem.MolFromSmiles(s) for s in new_smiles], dtype=object)
 
             # 4. Execute preliminary check (if applicable) which removes Mols that do not satisfy the (relatively) cheaper oracle components
             #    e.g., molecular weight is too high (> 500 Da), so discard without wasting computational resources on a docking oracle
