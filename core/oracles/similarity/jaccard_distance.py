@@ -20,12 +20,21 @@ class JaccardDistance(OracleComponent):
         ]
 
     def __call__(self, mols: np.ndarray[Mol]) -> np.ndarray[float]:
-        sims = []
-        fps = [GetMorganFingerprint(mol=mol, radius=self.radius, useCounts=self.use_counts, useFeatures=self.use_features) for mol in mols]
+        if len(self.reference_fingerprints) == 0:
+            return np.ones((len(mols),), dtype=np.float32)
 
-        for fp in fps:
-            sims.append(np.max(
-                [BulkTanimotoSimilarity(fp, ref_fp) for ref_fp in self.reference_fingerprints])
+        fps = [
+            GetMorganFingerprint(
+                mol=mol,
+                radius=self.radius,
+                useCounts=self.use_counts,
+                useFeatures=self.use_features,
             )
+            for mol in mols
+        ]
 
-        return 1 - np.array(sims, dtype=np.float32)
+        sims = np.empty((len(fps),), dtype=np.float32)
+        for idx, fp in enumerate(fps):
+            sims[idx] = float(max(BulkTanimotoSimilarity(fp, self.reference_fingerprints)))
+
+        return 1.0 - sims
