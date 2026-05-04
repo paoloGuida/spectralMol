@@ -1,0 +1,67 @@
+name: molevo-rapids-dask-draft
+
+channels:
+  - pytorch
+  - nvidia
+  - rapidsai
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Core runtime
+  - python=3.12
+  - pip
+
+  # GPU stack (draft defaults for V100-friendly CUDA generation)
+  # Adjust to your cluster module/toolkit policy.
+  # Common choice for V100 is CUDA 11.8. But 12.2+ is also often available and can be used with newer RAPIDS versions.
+  - 'cuda-version>=12.2,<=12.9'
+
+   # Deep Learning Frameworks (all these frameworks prefer pip instead of conda for CUDA 12)
+  - 'pytorch=*=*cuda*'
+  - 'pytorch-mutex=*=cuda*'
+  - pytorch-cuda
+  - torchvision
+  - torchaudio
+
+
+  # Scientific Python + chemistry
+  - rapids=26.02
+  - numpy
+  - pandas
+  - scipy
+  - joblib
+  - tqdm
+  - rdkit
+  - openbabel
+
+  # Visualization
+  - matplotlib
+  - seaborn
+  - plotly
+  - dash
+  - streamlit
+  - streamlit-plotly-events
+
+    # Distributed Computing
+  - dask
+  - dask-ml
+  - dask-sql
+  - dask-labextension
+  - ray-default
+  - ray-tune
+  - ray-train
+
+
+  # Optional but commonly useful in HPC/cluster workflows
+  - dask-jobqueue
+
+  # Project-specific Python packages that are usually pip-installed
+  - pip:
+      - selfies
+      - guacamol
+      - morfeus-ml
+      - molscore
+ 
+
+
