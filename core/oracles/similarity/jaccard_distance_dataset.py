@@ -25,7 +25,9 @@ class JaccardDistanceDataset(OracleComponent):
         self.construct_fingerprints(dataset_path)
 
     def __call__(self, mols: np.ndarray[Mol]) -> np.ndarray[float]:
-        sims = []
+        if len(self.reference_fingerprints) == 0:
+            return np.ones((len(mols),), dtype=np.float32)
+
         query_fps = [
             GetMorganFingerprint(
                 mol=mol, 
@@ -35,14 +37,12 @@ class JaccardDistanceDataset(OracleComponent):
             ) for mol in mols
         ]
 
-        for fp in query_fps:
-            # Compute the maximum similarity to any reference fingerprint
-            sims.append(np.max(
-                [BulkTanimotoSimilarity(fp, self.reference_fingerprints)]
-                )
-            )
+        sims = np.empty((len(query_fps),), dtype=np.float32)
+        for idx, fp in enumerate(query_fps):
+            # Compute the maximum similarity to any reference fingerprint.
+            sims[idx] = float(max(BulkTanimotoSimilarity(fp, self.reference_fingerprints)))
 
-        return 1 - np.array(sims, dtype=np.float32)
+        return 1.0 - sims
     
     def construct_fingerprints(self, dataset_path: str) -> None:
         smiles = []
