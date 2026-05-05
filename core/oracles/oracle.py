@@ -13,6 +13,7 @@ from oracles.reward_aggregator.reward_aggregator import RewardAggregator
 from diversity_filter.diversity_filter import DiversityFilter
 
 from oracles.utils import construct_oracle_component
+from ..profiling import get_profiler
 
 
 class Oracle:
@@ -84,45 +85,52 @@ class Oracle:
         SMILES need to be returned because they are filtered here (based on RDKit validity) and preliminary check.
         Likelihoods of the SMILES are calculated in the Reinforcement Learning module.
         """
+        profiler = get_profiler()
+        
         # 1. Only keep the valid SMILES (RDKit parsable into Mols)
-        smiles = np.array([s for s in smiles if Chem.MolFromSmiles(s) is not None])
+        with profiler.timer("oracle_smiles_validation"):
+            smiles = np.array([s for s in smiles if Chem.MolFromSmiles(s) is not None])
         
         # 2. Rewards can be obtained directly for SMILES in the Oracle Cache 
-        repeat_smiles, cached_rewards, new_smiles = self.rewards_from_oracle_cache(smiles, is_hallucinated_batch)
+        with profiler.timer("oracle_cache_lookup"):
+            repeat_smiles, cached_rewards, new_smiles = self.rewards_from_oracle_cache(smiles, is_hallucinated_batch)
 
         # In case all SMILES are repeats
         if len(new_smiles) > 0:
             # 3. Get the Mols for the new SMILES
-            new_mols = np.asarray([Chem.MolFromSmiles(s) for s in new_smiles], dtype=object)
+            with profiler.timer("oracle_mol_parsing"):
+                new_mols = np.asarray([Chem.MolFromSmiles(s) for s in new_smiles], dtype=object)
 
             # 4. Execute preliminary check (if applicable) which removes Mols that do not satisfy the (relatively) cheaper oracle components
             #    e.g., molecular weight is too high (> 500 Da), so discard without wasting computational resources on a docking oracle
-            new_smiles, new_mols = self.execute_preliminary_check(new_smiles, new_mols)
+            with profiler.timer("oracle_preliminary_check"):
+                new_smiles, new_mols = self.execute_preliminary_check(new_smiles, new_mols)
 
             # In case no SMILES pass the preliminary check
             if len(new_smiles) > 0:
                 # 5. Call each oracle component and aggregate the rewards
                 #    Initialize a DataFrame to store the raw values and rewards of each oracle component for tracking purposes
-                oracle_components_df = pd.DataFrame()
-                rewards = np.empty((len(self.oracle), len(new_mols)))
-                for idx, oracle in enumerate(self.oracle):
+                with profiler.timer("oracle_component_execution"):
+                    oracle_components_df = pd.DataFrame()
+                    rewards = np.empty((len(self.oracle), len(new_mols)))
+                    for idx, oracle in enumerate(self.oracle):
+                        if oracle.name == "geam":
+                            raw_vina, qed_rewards, raw_sa, aggregated_rewards = oracle(new_mols)
+                            oracle_components_df["raw_vina"] = raw_vina
+                            oracle_components_df["qed"] = qed_rewards
+                            oracle_components_df["raw_sa"] = raw_sa
+                            oracle_components_df["aggregated_reward"] = aggregated_rewards
+                        else:
+                            raw_property_values, component_rewards = oracle.calculate_reward(new_mols, self.calls)
+                            oracle_components_df[f"{oracle.name}_raw_values"] = raw_property_values
+                            oracle_components_df[f"{oracle.name}_reward"] = component_rewards
+                            rewards[idx] = component_rewards
+                    
+                    # 6. Aggregate the rewards
                     if oracle.name == "geam":
-                        raw_vina, qed_rewards, raw_sa, aggregated_rewards = oracle(new_mols)
-                        oracle_components_df["raw_vina"] = raw_vina
-                        oracle_components_df["qed"] = qed_rewards
-                        oracle_components_df["raw_sa"] = raw_sa
-                        oracle_components_df["aggregated_reward"] = aggregated_rewards
+                        rewards = np.array([aggregated_rewards])
                     else:
-                        raw_property_values, component_rewards = oracle.calculate_reward(new_mols, self.calls)
-                        oracle_components_df[f"{oracle.name}_raw_values"] = raw_property_values
-                        oracle_components_df[f"{oracle.name}_reward"] = component_rewards
-                        rewards[idx] = component_rewards
-                
-                # 6. Aggregate the rewards
-                if oracle.name == "geam":
-                    rewards = np.array([aggregated_rewards])
-                else:
-                    aggregated_rewards = self.aggregator(rewards, self.oracle_weights)
+                        aggregated_rewards = self.aggregator(rewards, self.oracle_weights)
             else:
                 aggregated_rewards = np.array([0.0])
 
@@ -140,8 +148,9 @@ class Oracle:
         all_rewards = np.concatenate([cached_rewards, aggregated_rewards])
 
         # 9. Penalize the rewards based on the Diversity Filter
-        penalized_new_rewards = diversity_filter.penalize_reward(new_smiles, aggregated_rewards)
-        penalized_all_rewards = diversity_filter.penalize_reward(all_smiles, all_rewards)
+        with profiler.timer("oracle_diversity_filter_penalize"):
+            penalized_new_rewards = diversity_filter.penalize_reward(new_smiles, aggregated_rewards)
+            penalized_all_rewards = diversity_filter.penalize_reward(all_smiles, all_rewards)
 
         # 10. Update the Oracle History
         if len(new_smiles) > 0:
@@ -156,19 +165,22 @@ class Oracle:
                 oracle_history_rewards = all_rewards
                 oracle_history_penalized_rewards = penalized_all_rewards
 
-            self.update_oracle_history(
-                smiles=oracle_history_smiles,
-                scaffolds=np.vectorize(get_bemis_murcko_scaffold)(oracle_history_smiles),
-                rewards=oracle_history_rewards,
-                penalized_rewards=oracle_history_penalized_rewards,
-                oracle_components_df=oracle_components_df
-            )
+            with profiler.timer("oracle_history_update"):
+                self.update_oracle_history(
+                    smiles=oracle_history_smiles,
+                    scaffolds=np.vectorize(get_bemis_murcko_scaffold)(oracle_history_smiles),
+                    rewards=oracle_history_rewards,
+                    penalized_rewards=oracle_history_penalized_rewards,
+                    oracle_components_df=oracle_components_df
+                )
 
         # 11. Update the Diversity Filter
-        diversity_filter.update(all_smiles)
+        with profiler.timer("oracle_diversity_filter_update"):
+            diversity_filter.update(all_smiles)
         
         # 12. Update the Oracle Cache - important to cache the penalized rewards
-        self.update_oracle_cache(all_smiles, penalized_all_rewards)
+        with profiler.timer("oracle_cache_update"):
+            self.update_oracle_cache(all_smiles, penalized_all_rewards)
                            
         return all_smiles, penalized_all_rewards
         
