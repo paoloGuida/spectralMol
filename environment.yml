@@ -17,16 +17,16 @@ dependencies:
   # Common choice for V100 is CUDA 11.8. But 12.2+ is also often available and can be used with newer RAPIDS versions.
   - 'cuda-version>=12.2,<=12.9'
 
-   # Deep Learning Frameworks (all these frameworks prefer pip instead of conda for CUDA 12)
-  - 'pytorch=*=*cuda*'
-  - 'pytorch-mutex=*=cuda*'
-  - pytorch-cuda
-  - torchvision
-  - torchaudio
+  #  # Deep Learning Frameworks (all these frameworks prefer pip instead of conda for CUDA 12)
+  # - 'pytorch=*=*cuda*'
+  # - 'pytorch-mutex=*=cuda*'
+  # - pytorch-cuda
+  # - torchvision
+  # - torchaudio
 
 
   # Scientific Python + chemistry
-  - rapids=26.02
+  # - rapids=26.02
   - numpy
   - pandas
   - scipy
@@ -41,7 +41,6 @@ dependencies:
   - plotly
   - dash
   - streamlit
-  - streamlit-plotly-events
 
     # Distributed Computing
   - dask
@@ -58,10 +57,29 @@ dependencies:
 
   # Project-specific Python packages that are usually pip-installed
   - pip:
-      - selfies
-      - guacamol
-      - morfeus-ml
-      - molscore
+    - selfies
+    - guacamol
+    - morfeus-ml
+    - molscore
+    - streamlit-extras
+    - streamlit-plotly-events
+    # RAPIDS packages via pip (CUDA 12)
+    - --extra-index-url https://pypi.nvidia.com
+    - cudf-cu12==26.02.*
+    - dask-cudf-cu12==26.02.*
+    - cuml-cu12==26.02.*
+    - cugraph-cu12==26.02.*
+    - nx-cugraph-cu12==26.02.*
+    - cuxfilter-cu12==26.02.*
+    - cucim-cu12==26.02.*
+    - pylibraft-cu12==26.02.*
+    - raft-dask-cu12==26.02.*
+    - cuvs-cu12==26.02.*
+    # pytorch packages via pip (CUDA 12.8)
+    - --extra-index-url https://download.pytorch.org/whl/cu128
+    - torch==2.10.0 
+    - torchvision==0.25.0 
+    - torchaudio==2.10.0
  
 
 
