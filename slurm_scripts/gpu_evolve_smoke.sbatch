@@ -19,6 +19,7 @@ ENV=/ibex/user/${USER}/molevoDrugDiscovery/env
 mkdir -p "${REPO}/logs"
 cd "${REPO}"
 
+export LD_LIBRARY_PATH="${ENV}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
