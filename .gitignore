@@ -141,3 +141,9 @@ dcgm/
 **.err
 **.log
 **.sif
+**log.txt
+
+# ignore generated files
+**.csv
+**.json
+**.tsv
