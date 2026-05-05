@@ -1532,6 +1532,7 @@ def run_strategy(
                     task_name = str(task_cfg.get("task", task_name))
                 task_counter = f"{task_idx}/{total_tasks}" if total_tasks else str(task_idx)
                 print(f"[{strategy}] task {task_counter} :: {task_name}", flush=True)
+                task_t0 = time.perf_counter()
                 result = evolve_on_task(
                     ms_task=ms_task,
                     strategy=strategy,
@@ -1548,6 +1549,7 @@ def run_strategy(
                     stagnation_mutation_boost=stagnation_mutation_boost,
                     rng=rng,
                 )
+                task_elapsed = time.perf_counter() - task_t0
         except Exception as exc:
             msg = str(exc).strip() or repr(exc)
             task_failures.append(
@@ -1572,7 +1574,8 @@ def run_strategy(
         rows.append(result)
         print(
             f"[{strategy}] done {result.task} :: best={result.best_score:.4f} "
-            f"top10={result.mean_top10:.4f} unique={result.unique_molecules}",
+            f"top10={result.mean_top10:.4f} unique={result.unique_molecules} "
+            f"time={task_elapsed:.2f}s",
             flush=True,
         )
 
