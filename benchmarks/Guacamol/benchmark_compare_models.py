@@ -160,6 +160,25 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--dry-run", action="store_true", help="Print commands only, do not execute.")
     p.add_argument(
+        "--executor",
+        default="thread",
+        choices=["thread", "dask"],
+        help=(
+            "Backend for model/seed job fanout. "
+            "'thread' uses ThreadPoolExecutor (default, always available). "
+            "'dask' uses dask.distributed for cluster-aware parallelism; "
+            "requires dask[distributed] to be installed."
+        ),
+    )
+    p.add_argument(
+        "--dask-scheduler",
+        default=None,
+        help=(
+            "Dask scheduler address (e.g. 'tcp://scheduler:8786'). "
+            "Only used when --executor dask. If not set, Dask creates a local cluster."
+        ),
+    )
+    p.add_argument(
         "--graphga-n-jobs",
         type=int,
         default=int(os.environ.get("MOLSCORE_GRAPHGA_N_JOBS", "1")),
@@ -853,6 +872,89 @@ def resolve_parallel_jobs(n_jobs: int) -> int:
     return max(1, min(requested, n_jobs))
 
 
+def _run_jobs_dask(
+    *,
+    jobs: list[dict[str, Any]],
+    execute_job: Any,
+    collect_result: Any,
+    dask_scheduler: str | None,
+    parallel_jobs: int,
+    continue_on_error: bool,
+) -> None:
+    """
+    Execute model/seed jobs using Dask for distributed parallelism.
+
+    Falls back to sequential execution if dask is not available.
+    Each job launches a subprocess (see execute_job), so Dask is used here
+    for task scheduling and result aggregation, not for GPU kernel dispatch.
+
+    Args:
+        jobs: list of job dicts (model, seed, cmd, log_path, model_seed_dir).
+        execute_job: callable(job) -> (rows, gen_rows, n_exports, failure, runtime_row).
+        collect_result: callable to merge result into outer accumulators.
+        dask_scheduler: optional Dask scheduler address; None = local cluster.
+        parallel_jobs: max concurrent workers (used for local cluster sizing).
+        continue_on_error: whether to continue after individual failures.
+    """
+    try:
+        import dask
+        from dask.distributed import Client, as_completed as dask_as_completed
+    except ImportError:
+        print(
+            "[dask] dask.distributed not available, falling back to sequential execution.",
+            flush=True,
+        )
+        for job in jobs:
+            rows, gen_rows, n_exports, failure, runtime_row = execute_job(job)
+            collect_result(rows, gen_rows, n_exports, failure, runtime_row, job)
+        return
+
+    n_workers = max(1, parallel_jobs)
+    if dask_scheduler:
+        print(f"[dask] connecting to scheduler: {dask_scheduler}", flush=True)
+        client = Client(dask_scheduler)
+    else:
+        print(f"[dask] starting local cluster with {n_workers} workers", flush=True)
+        client = Client(n_workers=n_workers, threads_per_worker=1)
+
+    print(f"[dask] submitting {len(jobs)} jobs", flush=True)
+
+    try:
+        futures = {client.submit(execute_job, job, pure=False): job for job in jobs}
+        for future in dask_as_completed(futures):
+            job = futures[future]
+            try:
+                rows, gen_rows, n_exports, failure, runtime_row = future.result()
+            except Exception as exc:
+                rows, gen_rows, n_exports = [], [], 0
+                failure = {
+                    "model": str(job["model"]),
+                    "seed": int(job["seed"]),
+                    "error": f"Unhandled exception: {exc}",
+                }
+                runtime_row = {
+                    "model": str(job["model"]),
+                    "seed": int(job["seed"]),
+                    "status": "failed",
+                    "return_code": -1,
+                    "started_at_utc": "",
+                    "finished_at_utc": "",
+                    "elapsed_seconds": float("nan"),
+                    "log_path": str(job["log_path"]),
+                    "model_seed_dir": str(job["model_seed_dir"]),
+                    "dry_run": False,
+                    "n_task_rows": 0,
+                    "n_generation_rows": 0,
+                }
+            collect_result(rows, gen_rows, n_exports, failure, runtime_row, job)
+            if failure and not continue_on_error:
+                for f in futures:
+                    f.cancel()
+                raise RuntimeError(str(failure["error"]))
+    finally:
+        client.close()
+
+
 def bootstrap_scoring_envs(
     *,
     python_bin: str,
@@ -1193,55 +1295,71 @@ def main() -> int:
             )
         return rows, gen_rows, len(written_exports), None, runtime_row
 
+    def _collect_result(
+        rows: list, gen_rows: list, n_exports: int,
+        failure: dict | None, runtime_row: dict, job: dict,
+    ) -> None:
+        """Merge one job result into the running accumulators."""
+        if failure:
+            if args.continue_on_error:
+                failures.append(failure)
+            else:
+                raise RuntimeError(str(failure["error"]))
+        all_rows.extend(rows)
+        all_gen_rows.extend(gen_rows)
+        runtime_rows.append(runtime_row)
+        print(
+            f"[done] model={job['model']} seed={job['seed']} rows={len(rows)} "
+            f"gen_rows={len(gen_rows)} exports={n_exports}"
+            + (" failed=1" if failure else ""),
+            flush=True,
+        )
+
     if jobs:
-        print(f"[run] scheduling {len(jobs)} jobs with max_workers={parallel_jobs}", flush=True)
-        with cf.ThreadPoolExecutor(max_workers=parallel_jobs) as executor:
-            future_to_job = {executor.submit(execute_job, job): job for job in jobs}
-            for future in cf.as_completed(future_to_job):
-                job = future_to_job[future]
-                try:
-                    rows, gen_rows, n_exports, failure, runtime_row = future.result()
-                except Exception as exc:
-                    rows = []
-                    gen_rows = []
-                    n_exports = 0
-                    failure = {
-                        "model": str(job["model"]),
-                        "seed": int(job["seed"]),
-                        "error": f"Unhandled exception: {exc}",
-                    }
-                    runtime_row = {
-                        "model": str(job["model"]),
-                        "seed": int(job["seed"]),
-                        "status": "failed",
-                        "return_code": -1,
-                        "started_at_utc": "",
-                        "finished_at_utc": "",
-                        "elapsed_seconds": float("nan"),
-                        "log_path": str(Path(job["log_path"]).resolve()),
-                        "model_seed_dir": str(Path(job["model_seed_dir"]).resolve()),
-                        "dry_run": bool(args.dry_run),
-                        "n_task_rows": 0,
-                        "n_generation_rows": 0,
-                    }
+        executor_backend = getattr(args, "executor", "thread")
+        dask_scheduler = getattr(args, "dask_scheduler", None)
 
-                if failure:
-                    if args.continue_on_error:
-                        failures.append(failure)
-                    else:
-                        for pending in future_to_job:
-                            if pending is not future:
-                                pending.cancel()
-                        raise RuntimeError(str(failure["error"]))
-
-                all_rows.extend(rows)
-                all_gen_rows.extend(gen_rows)
-                runtime_rows.append(runtime_row)
-                print(
-                    f"[done] model={job['model']} seed={job['seed']} rows={len(rows)} gen_rows={len(gen_rows)} exports={n_exports}"
-                    + (" failed=1" if failure else ""),
-                    flush=True,
-                )
+        if executor_backend == "dask":
+            _run_jobs_dask(
+                jobs=jobs,
+                execute_job=execute_job,
+                collect_result=_collect_result,
+                dask_scheduler=dask_scheduler,
+                parallel_jobs=parallel_jobs,
+                continue_on_error=args.continue_on_error,
+            )
+        else:
+            print(f"[run] scheduling {len(jobs)} jobs with ThreadPoolExecutor max_workers={parallel_jobs}", flush=True)
+            with cf.ThreadPoolExecutor(max_workers=parallel_jobs) as executor:
+                future_to_job = {executor.submit(execute_job, job): job for job in jobs}
+                for future in cf.as_completed(future_to_job):
+                    job = future_to_job[future]
+                    try:
+                        rows, gen_rows, n_exports, failure, runtime_row = future.result()
+                    except Exception as exc:
+                        rows = []
+                        gen_rows = []
+                        n_exports = 0
+                        failure = {
+                            "model": str(job["model"]),
+                            "seed": int(job["seed"]),
+                            "error": f"Unhandled exception: {exc}",
+                        }
+                        runtime_row = {
+                            "model": str(job["model"]),
+                            "seed": int(job["seed"]),
+                            "status": "failed",
+                            "return_code": -1,
+                            "started_at_utc": "",
+                            "finished_at_utc": "",
+                            "elapsed_seconds": float("nan"),
+                            "log_path": str(Path(job["log_path"]).resolve()),
+                            "model_seed_dir": str(Path(job["model_seed_dir"]).resolve()),
+                            "dry_run": bool(args.dry_run),
+                            "n_task_rows": 0,
+                            "n_generation_rows": 0,
+                        }
+                    _collect_result(rows, gen_rows, n_exports, failure, runtime_row, job)
 
     raw_df = pd.DataFrame(all_rows)
     raw_path = out_root / "comparison_raw.tsv"
