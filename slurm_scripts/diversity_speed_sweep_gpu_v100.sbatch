@@ -25,6 +25,6 @@ export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 
 ${CONDA} run -p "${ENV}" --no-capture-output python slurm_scripts/diversity_speed_sweep.py \
-  --sizes 32,64,128 \
-  --repeats 20 \
-  --warmups 3
+  --sizes 32,64,128,256,512,1024,2048 \
+  --repeats 10 \
+  --warmups 2
