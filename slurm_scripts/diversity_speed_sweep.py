@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import random
+import sys
 import statistics
 import time
 from pathlib import Path
@@ -13,7 +14,16 @@ import numpy as np
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem
 
-from core.gpu_utils import pairwise_tanimoto_diversity_from_smiles
+# Ensure repository root is importable when this script is run as a file.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from core.gpu_utils import (
+    morgan_bit_matrix,
+    pairwise_tanimoto_diversity_from_smiles,
+    pairwise_tanimoto_diversity_mean,
+)
 
 
 def _canonical_smiles(s: str) -> str | None:
@@ -61,9 +71,14 @@ def _load_smiles_pool(repo_root: Path, limit: int = 5000) -> list[str]:
 
 
 def _old_pairwise_tanimoto_diversity(smiles: list[str], max_n: int = 128) -> float:
+    fps = _old_build_fps(smiles=smiles, max_n=max_n)
+    return _old_pairwise_from_fps(fps)
+
+
+def _old_build_fps(smiles: list[str], max_n: int = 128):
     smiles_list = [s for s in smiles if isinstance(s, str) and s]
     if len(smiles_list) <= 1:
-        return 0.0
+        return []
     if len(smiles_list) > max_n:
         smiles_list = smiles_list[:max_n]
 
@@ -82,6 +97,11 @@ def _old_pairwise_tanimoto_diversity(smiles: list[str], max_n: int = 128) -> flo
             fps.append(morgan_gen.GetFingerprint(mol))
         else:
             fps.append(AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=2048))
+
+    return fps
+
+
+def _old_pairwise_from_fps(fps) -> float:
 
     if len(fps) <= 1:
         return 0.0
@@ -114,11 +134,29 @@ def _time_fn(fn, smiles: list[str], repeats: int, warmups: int) -> tuple[float, 
     )
 
 
+def _time_noarg_fn(fn, repeats: int, warmups: int) -> tuple[float, float, float, float]:
+    vals = []
+    out_val = float("nan")
+    for i in range(warmups + repeats):
+        t0 = time.perf_counter()
+        out = fn()
+        dt = time.perf_counter() - t0
+        if i >= warmups:
+            vals.append(dt)
+            out_val = float(out)
+    return (
+        float(min(vals)),
+        float(statistics.median(vals)),
+        float(np.mean(vals)),
+        out_val,
+    )
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Speed sweep: old vs new pairwise diversity.")
-    p.add_argument("--sizes", default="32,64,128", help="Comma-separated set sizes.")
-    p.add_argument("--repeats", type=int, default=20, help="Timed repetitions per size.")
-    p.add_argument("--warmups", type=int, default=3, help="Warmup iterations per size.")
+    p.add_argument("--sizes", default="32,64,128,256,512,1024,2048", help="Comma-separated set sizes.")
+    p.add_argument("--repeats", type=int, default=10, help="Timed repetitions per size.")
+    p.add_argument("--warmups", type=int, default=2, help="Warmup iterations per size.")
     p.add_argument("--seed", type=int, default=7, help="Random seed for sampling.")
     p.add_argument("--output-dir", default="molscore/outputs/phase2_benchmarks", help="Output directory.")
     args = p.parse_args()
@@ -162,15 +200,44 @@ def main() -> int:
             repeats=args.repeats,
             warmups=args.warmups,
         )
+        old_fp_min, old_fp_med, old_fp_mean, _ = _time_fn(
+            lambda x: float(len(_old_build_fps(x, max_n=max(sizes)))),
+            smiles,
+            repeats=args.repeats,
+            warmups=args.warmups,
+        )
+        fps_for_pair = _old_build_fps(smiles, max_n=max(sizes))
+        old_pair_min, old_pair_med, old_pair_mean, old_pair_score = _time_noarg_fn(
+            lambda: _old_pairwise_from_fps(fps_for_pair),
+            repeats=args.repeats,
+            warmups=args.warmups,
+        )
         new_cpu_min, new_cpu_med, new_cpu_mean, new_cpu_score = _time_fn(
             lambda x: pairwise_tanimoto_diversity_from_smiles(x, max_n=max(sizes), prefer_gpu=False),
             smiles,
             repeats=args.repeats,
             warmups=args.warmups,
         )
+        new_fp_min, new_fp_med, new_fp_mean, _ = _time_fn(
+            lambda x: float(morgan_bit_matrix(x, max_n=max(sizes)).shape[0]),
+            smiles,
+            repeats=args.repeats,
+            warmups=args.warmups,
+        )
+        bits_for_pair = morgan_bit_matrix(smiles, max_n=max(sizes))
+        new_cpu_pair_min, new_cpu_pair_med, new_cpu_pair_mean, new_cpu_pair_score = _time_noarg_fn(
+            lambda: pairwise_tanimoto_diversity_mean(bits_for_pair, use_gpu=False),
+            repeats=args.repeats,
+            warmups=args.warmups,
+        )
         new_auto_min, new_auto_med, new_auto_mean, new_auto_score = _time_fn(
             lambda x: pairwise_tanimoto_diversity_from_smiles(x, max_n=max(sizes), prefer_gpu=True),
             smiles,
+            repeats=args.repeats,
+            warmups=args.warmups,
+        )
+        new_auto_pair_min, new_auto_pair_med, new_auto_pair_mean, new_auto_pair_score = _time_noarg_fn(
+            lambda: pairwise_tanimoto_diversity_mean(bits_for_pair, use_gpu=True),
             repeats=args.repeats,
             warmups=args.warmups,
         )
@@ -189,9 +256,19 @@ def main() -> int:
                 "old_min_sec": old_min,
                 "new_cpu_min_sec": new_cpu_min,
                 "new_auto_min_sec": new_auto_min,
+                "old_fp_build_median_sec": old_fp_med,
+                "old_pairwise_median_sec": old_pair_med,
+                "new_fp_build_median_sec": new_fp_med,
+                "new_cpu_pairwise_median_sec": new_cpu_pair_med,
+                "new_auto_pairwise_median_sec": new_auto_pair_med,
+                "pairwise_speedup_new_cpu_vs_old": (old_pair_med / new_cpu_pair_med) if new_cpu_pair_med > 0 else float("nan"),
+                "pairwise_speedup_new_auto_vs_old": (old_pair_med / new_auto_pair_med) if new_auto_pair_med > 0 else float("nan"),
                 "old_score": old_score,
                 "new_cpu_score": new_cpu_score,
                 "new_auto_score": new_auto_score,
+                "old_pair_score": old_pair_score,
+                "new_cpu_pair_score": new_cpu_pair_score,
+                "new_auto_pair_score": new_auto_pair_score,
                 "abs_diff_old_vs_new_cpu": abs(old_score - new_cpu_score),
                 "abs_diff_old_vs_new_auto": abs(old_score - new_auto_score),
             }
@@ -219,11 +296,12 @@ def main() -> int:
     print(f"Output directory: {out_dir}", flush=True)
     print(f"TSV results: {tsv_path}", flush=True)
     print("", flush=True)
-    print("n_smiles\told_med_s\tnew_cpu_med_s\tnew_auto_med_s\tspeedup_cpu\tspeedup_auto", flush=True)
+    print("n_smiles\told_med_s\tnew_cpu_med_s\tnew_auto_med_s\tspeedup_cpu\tspeedup_auto\told_pair_s\tnew_auto_pair_s\tpair_speedup_auto", flush=True)
     for r in rows:
         print(
             f"{r['n_smiles']}\t{r['old_median_sec']:.6f}\t{r['new_cpu_median_sec']:.6f}\t"
-            f"{r['new_auto_median_sec']:.6f}\t{r['speedup_new_cpu_vs_old']:.3f}x\t{r['speedup_new_auto_vs_old']:.3f}x",
+            f"{r['new_auto_median_sec']:.6f}\t{r['speedup_new_cpu_vs_old']:.3f}x\t{r['speedup_new_auto_vs_old']:.3f}x\t"
+            f"{r['old_pairwise_median_sec']:.6f}\t{r['new_auto_pairwise_median_sec']:.6f}\t{r['pairwise_speedup_new_auto_vs_old']:.3f}x",
             flush=True,
         )
 
