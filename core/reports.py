@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -9,6 +10,15 @@ import numpy as np
 import pandas as pd
 
 from .gpu_utils import pairwise_tanimoto_diversity_from_smiles
+
+
+_DIVERSITY_GPU_ENABLED = os.environ.get("MOLEVO_DIVERSITY_GPU_ENABLED", "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+_DIVERSITY_GPU_MIN_N = max(1, int(os.environ.get("MOLEVO_DIVERSITY_GPU_MIN_N", "512")))
 
 
 PREFERRED_SCORE_COLUMNS = (
@@ -128,13 +138,21 @@ def _detect_score_column(df: pd.DataFrame, preferred_method: str | None = None) 
 
 
 def _pairwise_tanimoto_diversity(smiles: Iterable[str], max_n: int = 128) -> float:
+    smiles_list = [s for s in smiles if isinstance(s, str) and s]
+    if len(smiles_list) <= 1:
+        return 0.0
+    if len(smiles_list) > max_n:
+        smiles_list = smiles_list[:max_n]
+
+    # GPU path helps for larger sets; small sets are typically faster on CPU.
+    prefer_gpu = bool(_DIVERSITY_GPU_ENABLED and len(smiles_list) >= _DIVERSITY_GPU_MIN_N)
     try:
         return pairwise_tanimoto_diversity_from_smiles(
-            smiles,
+            smiles_list,
             max_n=int(max_n),
             radius=2,
             fp_size=2048,
-            prefer_gpu=True,
+            prefer_gpu=prefer_gpu,
         )
     except Exception:
         return float("nan")
