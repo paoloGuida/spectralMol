@@ -147,6 +147,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--python-bin", default=cfg.PYTHON_BIN_DEFAULT, help="Python interpreter used for local evolution and templates.")
     p.add_argument("--output-dir", default=cfg.OUTPUT_COMPARISONS_DIR_DEFAULT_STR, help="Root output directory for comparison runs.")
     p.add_argument(
+        "--dataframe-backend",
+        default="auto",
+        choices=["auto", "pandas", "cudf"],
+        help=(
+            "Backend for summary/groupby aggregation. "
+            "'pandas' always uses pandas. "
+            "'cudf' prefers cuDF and falls back to pandas if unavailable. "
+            "'auto' uses cuDF when available, otherwise pandas."
+        ),
+    )
+    p.add_argument(
         "--equal-initial-population",
         action=argparse.BooleanOptionalAction,
         default=EQUAL_INITIAL_POPULATION_DEFAULT,
@@ -260,6 +271,47 @@ def choose_python_bin(cli_python: str) -> str:
     return sys.executable
 
 
+def resolve_dataframe_backend(requested: str) -> str:
+    mode = str(requested).strip().lower()
+    if mode == "pandas":
+        return "pandas"
+    try:
+        import cudf  # noqa: F401
+        import cupy as cp
+
+        if int(cp.cuda.runtime.getDeviceCount()) <= 0:
+            return "pandas"
+        return "cudf"
+    except Exception:
+        return "pandas"
+
+
+def _to_backend_df(df: pd.DataFrame, backend: str):
+    if backend == "cudf":
+        import cudf
+
+        return cudf.from_pandas(df)
+    return df
+
+
+def _to_pandas_df(df):
+    if hasattr(df, "to_pandas"):
+        return df.to_pandas()
+    return df
+
+
+def _flatten_agg_columns(df):
+    cols: list[str] = []
+    for col in df.columns:
+        if isinstance(col, tuple):
+            parts = [str(part) for part in col if str(part)]
+            cols.append("_".join(parts).strip("_"))
+        else:
+            cols.append(str(col))
+    df.columns = cols
+    return df
+
+
 def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
@@ -286,7 +338,7 @@ def render_builtin_local_evolution_command(
     seed: int,
     model_output_dir: Path,
 ) -> list[str]:
-    script = repo_root / "molscore" / "software" / "evolve_vs_molscore_benchmark.py"
+    script = repo_root / "benchmarks" / "Guacamol" / "evolve_vs_molscore_benchmark.py"
     cmd = [
         python_bin,
         str(script),
@@ -819,38 +871,156 @@ def write_requested_generation_exports(
     return written
 
 
-def build_summary_tables(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_summary_tables(raw_df: pd.DataFrame, dataframe_backend: str = "pandas") -> tuple[pd.DataFrame, pd.DataFrame]:
     if raw_df.empty:
         return pd.DataFrame(), pd.DataFrame()
 
-    task_summary = (
-        raw_df.groupby(["model", "task"], as_index=False)
-        .agg(
-            mean_best_score=("best_score", "mean"),
-            std_best_score=("best_score", "std"),
-            mean_avg_score=("avg_score", "mean"),
-            std_avg_score=("avg_score", "std"),
-            mean_n_scored=("n_scored", "mean"),
-            n_runs=("seed", "count"),
-        )
-        .sort_values(["task", "mean_best_score"], ascending=[True, False])
-    )
+    backend = resolve_dataframe_backend(dataframe_backend)
+    df = _to_backend_df(raw_df, backend)
 
-    overall = (
-        task_summary.groupby("model", as_index=False)
-        .agg(
-            sum_task_best_score=("mean_best_score", "sum"),
-            sum_task_avg_score=("mean_avg_score", "sum"),
-            mean_task_best_score=("mean_best_score", "mean"),
-            mean_task_avg_score=("mean_avg_score", "mean"),
-            mean_task_std_best=("std_best_score", "mean"),
-            n_tasks=("task", "count"),
-            total_runs=("n_runs", "sum"),
-        )
-        .sort_values("sum_task_best_score", ascending=False)
+    task_summary = df.groupby(["model", "task"]).agg(
+        {
+            "best_score": ["mean", "std"],
+            "avg_score": ["mean", "std"],
+            "n_scored": ["mean"],
+            "seed": ["count"],
+        }
+    ).reset_index()
+    task_summary = _flatten_agg_columns(task_summary).rename(
+        columns={
+            "best_score_mean": "mean_best_score",
+            "best_score_std": "std_best_score",
+            "avg_score_mean": "mean_avg_score",
+            "avg_score_std": "std_avg_score",
+            "n_scored_mean": "mean_n_scored",
+            "seed_count": "n_runs",
+        }
     )
+    task_summary = task_summary.sort_values(["task", "mean_best_score"], ascending=[True, False])
+
+    overall = task_summary.groupby(["model"]).agg(
+        {
+            "mean_best_score": ["sum", "mean"],
+            "mean_avg_score": ["sum", "mean"],
+            "std_best_score": ["mean"],
+            "task": ["count"],
+            "n_runs": ["sum"],
+        }
+    ).reset_index()
+    overall = _flatten_agg_columns(overall).rename(
+        columns={
+            "mean_best_score_sum": "sum_task_best_score",
+            "mean_best_score_mean": "mean_task_best_score",
+            "mean_avg_score_sum": "sum_task_avg_score",
+            "mean_avg_score_mean": "mean_task_avg_score",
+            "std_best_score_mean": "mean_task_std_best",
+            "task_count": "n_tasks",
+            "n_runs_sum": "total_runs",
+        }
+    )
+    overall = overall.sort_values("sum_task_best_score", ascending=False)
+
+    task_summary = _to_pandas_df(task_summary)
+    overall = _to_pandas_df(overall)
     overall["rank"] = np.arange(1, len(overall) + 1)
     return task_summary, overall
+
+
+def build_generation_summary_tables(
+    gen_raw_df: pd.DataFrame,
+    dataframe_backend: str = "pandas",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if gen_raw_df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    backend = resolve_dataframe_backend(dataframe_backend)
+    df = _to_backend_df(gen_raw_df, backend)
+
+    gen_summary_df = df.groupby(["model", "task", "generation"]).agg(
+        {
+            "mean_score": ["mean"],
+            "best_score_so_far": ["mean"],
+            "best_score_gen": ["mean"],
+            "valid_rate": ["mean"],
+            "valid_count": ["mean"],
+            "unique_valid_count": ["mean"],
+            "new_unique_count": ["mean"],
+            "diversity_mean": ["mean"],
+            "seed": ["nunique"],
+        }
+    ).reset_index()
+    gen_summary_df = _flatten_agg_columns(gen_summary_df).rename(
+        columns={
+            "mean_score_mean": "mean_score",
+            "best_score_so_far_mean": "mean_best_score_so_far",
+            "best_score_gen_mean": "mean_best_score_gen",
+            "valid_rate_mean": "mean_valid_rate",
+            "valid_count_mean": "mean_valid_count",
+            "unique_valid_count_mean": "mean_unique_valid_count",
+            "new_unique_count_mean": "mean_new_unique_count",
+            "diversity_mean_mean": "mean_diversity",
+            "seed_nunique": "n_runs",
+        }
+    )
+    gen_summary_df = gen_summary_df.sort_values(["task", "generation", "model"], ascending=[True, True, True])
+
+    gen_model_df = gen_summary_df.groupby(["model", "generation"]).agg(
+        {
+            "mean_score": ["mean"],
+            "mean_best_score_so_far": ["mean"],
+            "mean_best_score_gen": ["mean"],
+            "mean_valid_rate": ["mean"],
+            "mean_diversity": ["mean"],
+            "task": ["nunique"],
+            "n_runs": ["mean"],
+        }
+    ).reset_index()
+    gen_model_df = _flatten_agg_columns(gen_model_df).rename(
+        columns={
+            "mean_score_mean": "mean_score",
+            "mean_best_score_so_far_mean": "mean_best_score_so_far",
+            "mean_best_score_gen_mean": "mean_best_score_gen",
+            "mean_valid_rate_mean": "mean_valid_rate",
+            "mean_diversity_mean": "mean_diversity",
+            "task_nunique": "n_tasks",
+            "n_runs_mean": "n_runs",
+        }
+    )
+    gen_model_df = gen_model_df.sort_values(["generation", "model"], ascending=[True, True])
+
+    return _to_pandas_df(gen_summary_df), _to_pandas_df(gen_model_df)
+
+
+def build_runtime_summary_table(
+    runtime_df: pd.DataFrame,
+    dataframe_backend: str = "pandas",
+) -> pd.DataFrame:
+    if runtime_df.empty:
+        return pd.DataFrame()
+
+    base_df = runtime_df.copy()
+    base_df["failed_flag"] = (base_df["status"] != "ok").astype(int)
+    backend = resolve_dataframe_backend(dataframe_backend)
+    df = _to_backend_df(base_df, backend)
+
+    runtime_summary_df = df.groupby(["model"]).agg(
+        {
+            "elapsed_seconds": ["mean", "min", "max"],
+            "seed": ["count"],
+            "failed_flag": ["sum"],
+        }
+    ).reset_index()
+    runtime_summary_df = _flatten_agg_columns(runtime_summary_df).rename(
+        columns={
+            "elapsed_seconds_mean": "mean_elapsed_seconds",
+            "elapsed_seconds_min": "min_elapsed_seconds",
+            "elapsed_seconds_max": "max_elapsed_seconds",
+            "seed_count": "n_runs",
+            "failed_flag_sum": "n_failed",
+        }
+    )
+    runtime_summary_df = runtime_summary_df.sort_values(["mean_elapsed_seconds", "model"], ascending=[True, True])
+    return _to_pandas_df(runtime_summary_df)
 
 
 def resolve_parallel_jobs(n_jobs: int) -> int:
@@ -1168,6 +1338,11 @@ def main() -> int:
             )
 
     parallel_jobs = resolve_parallel_jobs(len(jobs))
+    dataframe_backend = resolve_dataframe_backend(getattr(args, "dataframe_backend", "auto"))
+    print(
+        f"[backend] dataframe_backend requested={getattr(args, 'dataframe_backend', 'auto')} resolved={dataframe_backend}",
+        flush=True,
+    )
     run_meta = {
         "benchmark": args.benchmark,
         "custom_benchmark": custom_benchmark,
@@ -1188,6 +1363,8 @@ def main() -> int:
         "model_spec_file": str(model_spec_path),
         "examples_root": examples_root,
         "python_bin": python_bin,
+        "dataframe_backend_requested": str(getattr(args, "dataframe_backend", "auto")),
+        "dataframe_backend_resolved": str(dataframe_backend),
         "dry_run": bool(args.dry_run),
         "continue_on_error": bool(args.continue_on_error),
         "parallel_jobs": int(parallel_jobs),
@@ -1365,7 +1542,7 @@ def main() -> int:
     raw_path = out_root / "comparison_raw.tsv"
     raw_df.to_csv(raw_path, sep="\t", index=False)
 
-    task_summary, overall = build_summary_tables(raw_df)
+    task_summary, overall = build_summary_tables(raw_df, dataframe_backend=dataframe_backend)
     task_path = out_root / "comparison_task_summary.tsv"
     overall_path = out_root / "comparison_overall.tsv"
     task_summary.to_csv(task_path, sep="\t", index=False)
@@ -1375,38 +1552,10 @@ def main() -> int:
     gen_raw_path = out_root / "comparison_generation_raw.tsv"
     gen_raw_df.to_csv(gen_raw_path, sep="\t", index=False)
 
-    if gen_raw_df.empty:
-        gen_summary_df = pd.DataFrame()
-        gen_model_df = pd.DataFrame()
-    else:
-        gen_summary_df = (
-            gen_raw_df.groupby(["model", "task", "generation"], as_index=False)
-            .agg(
-                mean_score=("mean_score", "mean"),
-                mean_best_score_so_far=("best_score_so_far", "mean"),
-                mean_best_score_gen=("best_score_gen", "mean"),
-                mean_valid_rate=("valid_rate", "mean"),
-                mean_valid_count=("valid_count", "mean"),
-                mean_unique_valid_count=("unique_valid_count", "mean"),
-                mean_new_unique_count=("new_unique_count", "mean"),
-                mean_diversity=("diversity_mean", "mean"),
-                n_runs=("seed", "nunique"),
-            )
-            .sort_values(["task", "generation", "model"], ascending=[True, True, True])
-        )
-        gen_model_df = (
-            gen_summary_df.groupby(["model", "generation"], as_index=False)
-            .agg(
-                mean_score=("mean_score", "mean"),
-                mean_best_score_so_far=("mean_best_score_so_far", "mean"),
-                mean_best_score_gen=("mean_best_score_gen", "mean"),
-                mean_valid_rate=("mean_valid_rate", "mean"),
-                mean_diversity=("mean_diversity", "mean"),
-                n_tasks=("task", "nunique"),
-                n_runs=("n_runs", "mean"),
-            )
-            .sort_values(["generation", "model"], ascending=[True, True])
-        )
+    gen_summary_df, gen_model_df = build_generation_summary_tables(
+        gen_raw_df,
+        dataframe_backend=dataframe_backend,
+    )
 
     gen_summary_path = out_root / "comparison_generation_summary.tsv"
     gen_model_path = out_root / "comparison_generation_model_summary.tsv"
@@ -1416,20 +1565,10 @@ def main() -> int:
     runtime_df = pd.DataFrame(runtime_rows)
     runtime_path = out_root / "model_runtime.tsv"
     runtime_df.to_csv(runtime_path, sep="\t", index=False)
-    if runtime_df.empty:
-        runtime_summary_df = pd.DataFrame()
-    else:
-        runtime_summary_df = (
-            runtime_df.groupby(["model"], as_index=False)
-            .agg(
-                mean_elapsed_seconds=("elapsed_seconds", "mean"),
-                min_elapsed_seconds=("elapsed_seconds", "min"),
-                max_elapsed_seconds=("elapsed_seconds", "max"),
-                n_runs=("seed", "count"),
-                n_failed=("status", lambda s: int((s != "ok").sum())),
-            )
-            .sort_values(["mean_elapsed_seconds", "model"], ascending=[True, True])
-        )
+    runtime_summary_df = build_runtime_summary_table(
+        runtime_df,
+        dataframe_backend=dataframe_backend,
+    )
     runtime_summary_path = out_root / "model_runtime_summary.tsv"
     runtime_summary_df.to_csv(runtime_summary_path, sep="\t", index=False)
 
