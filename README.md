@@ -19,7 +19,8 @@ An evolutionary drug discovery framework that optimises molecules against multi-
    - [Scalar vs NSGA-II comparison](#scalar-vs-nsga-ii-comparison)
 6. [Configuration Reference](#configuration-reference)
 7. [Output Files](#output-files)
-8. [Extending the Framework](#extending-the-framework)
+8. [Matrix Results (May 2026)](#matrix-results-may-2026)
+9. [Extending the Framework](#extending-the-framework)
 
 ---
 
@@ -522,6 +523,45 @@ outputs/saturn_comparison/
 ```
 
 ---
+
+  ## Matrix Results (May 2026)
+
+  Round-2 cluster matrix runs completed successfully for all four configurations:
+
+  - baseline_cpu: thread executor + pandas backend
+  - dask_cpu: dask executor + pandas backend
+  - rapids_v100: thread executor + dataframe backend auto (resolved to cuDF on V100)
+  - dask_rapids_v100: dask executor + dataframe backend auto (resolved to cuDF on V100)
+
+  ### Runtime Summary
+
+  | Config | Mean elapsed seconds | Speedup vs baseline | Time reduction vs baseline |
+  |---|---:|---:|---:|
+  | baseline_cpu | 1541.2372 | 1.0000x | 0.00% |
+  | dask_cpu | 1463.3349 | 1.0532x | 5.05% |
+  | rapids_v100 | 1349.2829 | 1.1423x | 12.45% |
+  | dask_rapids_v100 | 1316.1125 | 1.1711x | 14.61% |
+
+  ### Quality Check
+
+  - Aggregate score metrics are matched across configurations (differences only at floating-point precision).
+  - n_failed is 0 for all matrix runs.
+
+  ### Recommended Default Launch Mode
+
+  - Use dask_rapids_v100 for production-scale matrix runs.
+  - Launch script: slurm_scripts/compare_matrix_dask_rapids_v100.sbatch
+
+  ### Report and Data Artifacts
+
+  - One-page report: molscore/outputs/comparison_matrix/matrix_report_20260506_round2.md
+  - Speedup table: molscore/outputs/comparison_matrix/speedup_matrix_20260506_round2.tsv
+  - Baseline runtime summary: molscore/outputs/comparison_matrix/baseline_cpu/compare_GuacaMol_20260506_120038/model_runtime_summary.tsv
+  - Dask CPU runtime summary: molscore/outputs/comparison_matrix/dask_cpu/compare_GuacaMol_20260506_120224/model_runtime_summary.tsv
+  - RAPIDS V100 runtime summary: molscore/outputs/comparison_matrix/rapids_v100/compare_GuacaMol_20260506_120813/model_runtime_summary.tsv
+  - Dask + RAPIDS V100 runtime summary: molscore/outputs/comparison_matrix/dask_rapids_v100/compare_GuacaMol_20260506_121020/model_runtime_summary.tsv
+
+  ---
 
 ## Extending the Framework
 
