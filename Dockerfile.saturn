@@ -1,0 +1,51 @@
+FROM docker.io/diphyx/vina-gpu:quickvina2
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    CONDA_DIR=/opt/conda \
+    PATH=/opt/conda/bin:$PATH \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget -qO /tmp/miniforge.sh \
+    https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+    && bash /tmp/miniforge.sh -b -p ${CONDA_DIR} \
+    && rm -f /tmp/miniforge.sh \
+    && conda config --system --set auto_update_conda false \
+    && conda clean -afy
+
+RUN conda install -y -c conda-forge \
+    python=3.10 \
+    numpy \
+    pandas \
+    scipy \
+    joblib \
+    tqdm \
+    rdkit \
+    openbabel \
+    pip \
+    && conda clean -afy
+
+RUN pip install --no-cache-dir \
+    selfies \
+    guacamol \
+    morfeus-ml \
+    molscore
+
+ARG SATURN_REPRO_DIR=/opt/saturn_core/experimental_reproduction/synthesizability
+
+RUN test -x /vina/QuickVina2-GPU-2.1/QuickVina2-GPU-2-1 \
+    && mkdir -p ${SATURN_REPRO_DIR} \
+    && ln -sfn /vina/QuickVina2-GPU-2.1 ${SATURN_REPRO_DIR}/QuickVina2-GPU-2.1
+
+# Neutralize upstream entrypoint so helper scripts can run arbitrary commands.
+ENTRYPOINT []
+
+WORKDIR /workspace
+
+CMD ["bash"]
