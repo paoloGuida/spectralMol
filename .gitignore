@@ -148,3 +148,4 @@ dcgm/
 **.json
 **.tsv
 **.smi
+**.rst
