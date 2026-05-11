@@ -75,8 +75,8 @@ dependencies:
     - pylibraft-cu12==26.02.*
     - raft-dask-cu12==26.02.*
     - cuvs-cu12==26.02.*
-    # pytorch packages via pip (CUDA 12.8)
-    - --extra-index-url https://download.pytorch.org/whl/cu128
+    # pytorch packages via pip (CUDA 12.9)
+    - --extra-index-url https://download.pytorch.org/whl/cu129
     - torch==2.10.0 
     - torchvision==0.25.0 
     - torchaudio==2.10.0
