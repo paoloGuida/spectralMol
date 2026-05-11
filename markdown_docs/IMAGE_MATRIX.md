@@ -7,7 +7,7 @@ Use split images to keep Saturn docking dependencies independent from RAPIDS acc
 
 | Image | Build spec | Primary purpose | Includes | Excludes |
 |---|---|---|---|---|
-| `molevo-saturn:cuda12.2-quickvina2` | `Dockerfile.saturn` | SATURN docking workflows | QuickVina2-GPU, RDKit, OpenBabel, MolScore stack | RAPIDS/cuDF stack |
+| `molevo-saturn:cuda12.2-quickvina2` | `Dockerfile.saturn` | SATURN docking workflows | QuickVina2-GPU, RDKit, OpenBabel, MolScore stack, CuPy (`cupy-cuda12x`) for report-time diversity acceleration | RAPIDS/cuDF stack |
 | `molevo-rapids:cuda12.2` | `Dockerfile.rapids` | GuacaMol acceleration workflows | cuDF/dask-cudf/cuML, RDKit, OpenBabel, Dask, MolScore stack | QuickVina2-GPU target bundle |
 
 ## Launcher Mapping
@@ -42,3 +42,14 @@ Create containerized variants of:
 2. `compare_matrix_dask_rapids_v100.sbatch`
 
 These should execute `benchmark_compare_models.py` inside `molevo-rapids:cuda12.2` via Singularity/Apptainer on IBEX.
+
+## Saturn Diversity Acceleration Note
+Saturn report generation now uses the shared diversity utility in `core/gpu_utils.py` when available.
+
+Runtime controls:
+1. `MOLEVO_DIVERSITY_GPU_ENABLED=1` (default): enable GPU attempt for diversity metrics.
+2. `MOLEVO_SATURN_DIVERSITY_GPU_MIN_N=64` (default): minimum unique-valid molecules before GPU path is used.
+
+Behavior:
+1. If CuPy/GPU is available, Saturn report diversity can run on GPU for larger generations.
+2. If unavailable or on any error, Saturn automatically falls back to CPU RDKit diversity.
