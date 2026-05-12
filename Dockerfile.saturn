@@ -2,7 +2,9 @@ FROM docker.io/diphyx/vina-gpu:quickvina2
 
 ENV DEBIAN_FRONTEND=noninteractive \
     CONDA_DIR=/opt/conda \
+    MINIFORGE_VERSION=24.11.0-0 \
     PATH=/opt/conda/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/conda/lib:${LD_LIBRARY_PATH} \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -13,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -qO /tmp/miniforge.sh \
-    https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+    https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-Linux-x86_64.sh \
     && bash /tmp/miniforge.sh -b -p ${CONDA_DIR} \
     && rm -f /tmp/miniforge.sh \
     && conda config --system --set auto_update_conda false \
@@ -37,6 +39,8 @@ RUN pip install --no-cache-dir \
     morfeus-ml \
     molscore \
     cupy-cuda12x
+
+RUN python -c "import rdkit; import openbabel; import selfies; import guacamol; import molscore; import cupy; print('saturn-image-smoke-ok')"
 
 ARG SATURN_REPRO_DIR=/opt/saturn_core/experimental_reproduction/synthesizability
 
