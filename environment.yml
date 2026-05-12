@@ -12,11 +12,9 @@ dependencies:
   - python=3.12
   - pip
 
-  # GPU stack (draft defaults for V100-friendly CUDA generation)
-  # Adjust to your cluster module/toolkit policy.
-  # Common choice for V100 is CUDA 11.8. But 12.2+ is also often available and can be used with newer RAPIDS versions.
-  - 'cuda-version>=12.2,<=12.9'
-
+  # GPU stack target for current container plan
+  - cuda-version=12.9
+  
   #  # Deep Learning Frameworks (all these frameworks prefer pip instead of conda for CUDA 12)
   # - 'pytorch=*=*cuda*'
   # - 'pytorch-mutex=*=cuda*'
@@ -65,16 +63,16 @@ dependencies:
     - streamlit-plotly-events
     # RAPIDS packages via pip (CUDA 12)
     - --extra-index-url https://pypi.nvidia.com
-    - cudf-cu12==26.02.*
-    - dask-cudf-cu12==26.02.*
-    - cuml-cu12==26.02.*
-    - cugraph-cu12==26.02.*
-    - nx-cugraph-cu12==26.02.*
-    - cuxfilter-cu12==26.02.*
-    - cucim-cu12==26.02.*
-    - pylibraft-cu12==26.02.*
-    - raft-dask-cu12==26.02.*
-    - cuvs-cu12==26.02.*
+    - cudf-cu12==26.2.0
+    - dask-cudf-cu12==26.2.0
+    - cuml-cu12==26.2.0
+    - cugraph-cu12==26.2.0
+    - nx-cugraph-cu12==26.2.0
+    - cuxfilter-cu12==26.2.0
+    - cucim-cu12==26.2.0
+    - pylibraft-cu12==26.2.0
+    - raft-dask-cu12==26.2.0
+    - cuvs-cu12==26.2.0
     # pytorch packages via pip (CUDA 12.9)
     - --extra-index-url https://download.pytorch.org/whl/cu129
     - torch==2.10.0 
