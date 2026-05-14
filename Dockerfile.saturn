@@ -77,14 +77,11 @@ RUN set -eux; \
 RUN CONDA_BASE="$(conda info --base)" \
     && if [ "$CONDA_BASE" != "/opt/conda" ]; then ln -s "$CONDA_BASE" /opt/conda; fi
 
-RUN conda init --system bash
-
 SHELL ["/bin/bash", "-lc"]
 
-RUN source /etc/profile.d/conda.sh \
-    && conda create -y -n ${CONDA_ENV_NAME} -c conda-forge \
+RUN conda create -y -p /opt/conda/envs/${CONDA_ENV_NAME} -c conda-forge \
         python=3.10 \
-        numpy \
+    "numpy<2" \
         pandas \
         scipy \
         joblib \
@@ -92,13 +89,14 @@ RUN source /etc/profile.d/conda.sh \
         rdkit \
         openbabel \
         pip \
-    && conda run -n ${CONDA_ENV_NAME} pip install --no-cache-dir \
+    && /opt/conda/envs/${CONDA_ENV_NAME}/bin/pip install --no-cache-dir \
         selfies \
         guacamol \
         morfeus-ml \
         molscore \
         cupy-cuda12x \
-    && conda clean -afy
+        "numpy<2" \
+    && (rm -rf /opt/conda/pkgs/* /tmp/conda* /root/.cache/pip 2>/dev/null || true)
 
 RUN mkdir -p /vina ${SATURN_REPRO_DIR}
 
@@ -107,11 +105,11 @@ COPY --from=quickvina-builder /opt/src/quickvina-src/QuickVina2-GPU-2.1 /vina/Qu
 RUN test -x /vina/QuickVina2-GPU-2.1/QuickVina2-GPU-2-1 \
     && ln -sfn /vina/QuickVina2-GPU-2.1 ${SATURN_REPRO_DIR}/QuickVina2-GPU-2.1
 
-RUN conda run -n ${CONDA_ENV_NAME} python -c "import rdkit; import openbabel; import selfies; import guacamol; import molscore; import cupy; print('saturn-image-smoke-ok')"
+RUN /opt/conda/envs/${CONDA_ENV_NAME}/bin/python -c "import numpy as np; assert int(np.__version__.split('.')[0]) < 2, np.__version__; import rdkit; import openbabel; import selfies; import guacamol; import molscore; import cupy; print('saturn-image-smoke-ok')"
 
 # Neutralize upstream entrypoint so helper scripts can run arbitrary commands.
 ENTRYPOINT []
 
 WORKDIR /workspace
 
-CMD ["bash", "-lc", "source /etc/profile.d/conda.sh && conda activate ${CONDA_ENV_NAME} && exec bash"]
+CMD ["bash", "-lc", "exec bash"]
