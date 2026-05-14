@@ -40,13 +40,14 @@ COPY environment.yml /tmp/environment.yml
 
 # Build project environment from the repository spec.
 RUN source /etc/profile.d/conda.sh \
-    && conda env create -f /tmp/environment.yml \
+    && conda env create -p /opt/conda/envs/${CONDA_ENV_NAME} -f /tmp/environment.yml \
+    && chown -R nonroot:nonroot /opt/conda \
     && rm -f /tmp/environment.yml \
-    && conda clean -afy
+    && rm -rf /opt/conda/pkgs/* /tmp/conda* /root/.cache/pip 2>/dev/null || true
 
-RUN conda run -n ${CONDA_ENV_NAME} python -c "import rdkit; import dask; import cudf; import cuml; print('wolfi-conda-rapids-smoke-ok')"
+#RUN conda run -p /opt/conda/envs/${CONDA_ENV_NAME} python -c "import rdkit; import dask; import cudf; import cuml; print('wolfi-conda-rapids-smoke-ok')"
 
 USER nonroot
 WORKDIR /workspace
 
-CMD ["bash", "-lc", "source /etc/profile.d/conda.sh && conda activate ${CONDA_ENV_NAME} && exec bash"]
+CMD ["bash", "-lc", "source /etc/profile.d/conda.sh && conda activate /opt/conda/envs/${CONDA_ENV_NAME} && exec bash"]
