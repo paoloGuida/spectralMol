@@ -8,7 +8,7 @@ ARG CONDA_ENV_NAME=molevo-rapids-dask-draft
 
 ENV CONDA_ENV_NAME=${CONDA_ENV_NAME} \
     CUDA_HOME=/opt/conda/envs/${CONDA_ENV_NAME} \
-    PATH=/opt/conda/bin:/opt/conda/envs/${CONDA_ENV_NAME}/bin:/usr/local/bin:$PATH \
+    PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin:/opt/conda/bin:/usr/local/bin:$PATH \
     LD_LIBRARY_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/lib:$LD_LIBRARY_PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
