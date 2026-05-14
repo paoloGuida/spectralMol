@@ -32,22 +32,20 @@ RUN apk add --no-cache \
 RUN CONDA_BASE="$(conda info --base)" \
     && if [ "$CONDA_BASE" != "/opt/conda" ]; then ln -s "$CONDA_BASE" /opt/conda; fi
 
-RUN conda init --system bash
-
 SHELL ["/bin/bash", "-lc"]
 
 COPY environment.yml /tmp/environment.yml
 
 # Build project environment from the repository spec.
-RUN source /etc/profile.d/conda.sh \
-    && conda env create -p /opt/conda/envs/${CONDA_ENV_NAME} -f /tmp/environment.yml \
+RUN conda env create --solver libmamba -p /opt/conda/envs/${CONDA_ENV_NAME} -f /tmp/environment.yml \
+    && test -x /opt/conda/envs/${CONDA_ENV_NAME}/bin/python \
     && chown -R nonroot:nonroot /opt/conda \
     && rm -f /tmp/environment.yml \
-    && rm -rf /opt/conda/pkgs/* /tmp/conda* /root/.cache/pip 2>/dev/null || true
+    && (rm -rf /opt/conda/pkgs/* /tmp/conda* /root/.cache/pip 2>/dev/null || true)
 
-#RUN conda run -p /opt/conda/envs/${CONDA_ENV_NAME} python -c "import rdkit; import dask; import cudf; import cuml; print('wolfi-conda-rapids-smoke-ok')"
+RUN /opt/conda/envs/${CONDA_ENV_NAME}/bin/python -c "import rdkit; import dask; import cudf; import cuml; print('wolfi-conda-rapids-smoke-ok')"
 
 USER nonroot
 WORKDIR /workspace
 
-CMD ["bash", "-lc", "source /etc/profile.d/conda.sh && conda activate /opt/conda/envs/${CONDA_ENV_NAME} && exec bash"]
+CMD ["bash", "-lc", "exec bash"]
