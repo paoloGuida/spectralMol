@@ -1,5 +1,3 @@
-name: molevo-rapids-dask-draft
-
 channels:
   - pytorch
   - nvidia
