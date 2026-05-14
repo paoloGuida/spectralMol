@@ -149,3 +149,7 @@ dcgm/
 **.tsv
 **.smi
 **.rst
+
+overleaf/
+overleaf.zip
+Draft_*.zip
