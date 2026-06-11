@@ -70,22 +70,55 @@ molevoDrugDiscovery/
 │       ├── compare_scalar_vs_nsga2_saturn.py # Scalar vs NSGA-II comparison
 │       ├── guacamol_reports.py               # Report writer for Saturn runs
 │       └── table2_r_sa_qed_oracle_template.json  # Default oracle config (7UVU target)
-│
-└── Saturn_TestCase/               # Reference run artefacts for run 46364391
 ```
 
 ---
 
 ## Environment Setup
 
-### 1. Create the conda environment
+### Recommended: Using Conda Environment (Automated)
+
+The easiest way to get started is using the provided `environment.yml`:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/molevoDrugDiscovery.git
+cd molevoDrugDiscovery
+
+# Create and activate the conda environment
+conda env create -f environment.yml
+conda activate molevoDrugDiscovery
+```
+
+This single command installs all core dependencies including:
+- Python 3.12
+- RDKit, OpenBabel (via conda-forge for correct native binaries)
+- NumPy, Pandas, SciPy, Joblib, Tqdm
+- Selfies, Guacamol, MolScore, Morfeus
+- Optional: PyTorch, Dask, RAPIDS (for GPU acceleration)
+
+You can then proceed directly to [Running Benchmarks](#guacamol-benchmark).
+
+> **Optional: GPU/RAPIDS Support**
+> For GPU-accelerated diversity filtering (requires NVIDIA GPU with CUDA):
+> ```bash
+> pip install cupy-cuda12x  # Replace '12x' with your CUDA version (e.g., cuda121)
+> ```
+
+---
+
+### Alternative: Manual Installation
+
+If you prefer manual control over dependencies, follow these steps:
+
+#### 1. Create the conda environment
 
 ```bash
 conda create -n molevoDrugDiscovery python=3.10
 conda activate molevoDrugDiscovery
 ```
 
-### 2. Install compiled dependencies via conda-forge
+#### 2. Install compiled dependencies via conda-forge
 
 RDKit and OpenBabel must be installed through conda to get correct native binaries:
 
@@ -93,7 +126,7 @@ RDKit and OpenBabel must be installed through conda to get correct native binari
 conda install -c conda-forge numpy pandas scipy joblib tqdm rdkit openbabel
 ```
 
-### 3. Install Python packages via pip
+#### 3. Install Python packages via pip
 
 ```bash
 pip install selfies guacamol morfeus-ml molscore
@@ -105,20 +138,21 @@ pip install selfies guacamol morfeus-ml molscore
 > pip install molbloom
 > ```
 
-### 4. (Optional) Install additional packages
+#### 4. (Optional) Install additional packages
 
+For distributed computing and GPU acceleration:
 ```bash
 pip install torch dask distributed dask-jobqueue flask streamlit streamlit-plotly-events plotly seaborn
 ```
 
-### 5. (Optional) Docking dependencies
+#### 5. (Optional) Docking dependencies
 
 For Saturn oracle scoring with QuickVina2-GPU you will need:
 
 - A compiled **QuickVina2-GPU-2.1** binary (see the [Vina-GPU GitHub repository](https://github.com/DeltaGroupNJUPT/Vina-GPU))
-- The **receptor PDBQT** and **reference ligand PDB** for your target (7UVU example files are referenced in `Saturn_TestCase/`)
+- The **receptor PDBQT** and **reference ligand PDB** for your target
 
-### 6. Make the `Core` package importable
+#### 6. Make the `Core` package importable
 
 The benchmark scripts automatically insert the repository root into `sys.path`, so no installation step is required. If you import `core` from a custom script, either:
 
