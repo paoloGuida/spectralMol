@@ -458,26 +458,7 @@ python compare_scalar_vs_nsga2_saturn.py \
 | `--output-dir` | `outputs/compare_scalar_vs_nsga2` | Output root |
 | `--run-id` | *(auto timestamp)* | Run identifier appended to output paths |
 
-#### Replicating run 46364391
 
-The exact settings for the reference IBEX cluster run are recorded in `Saturn_TestCase/software_saturn46364391/`. To reproduce locally:
-
-```bash
-cd benchmarks/Saturn
-
-python compare_scalar_vs_nsga2_saturn.py \
-  --seeds 0,1,2,3,4,5,6,7,8,9 \
-  --budgets 1000 \
-  --population-size 256 \
-  --batch-size 32 \
-  --seed-pool-size 256 \
-  --init-population-mode graphga_zinc250k \
-  --graphga-zinc250k-seed-smiles-file /path/to/zinc250k_ranked_qed_sa.smi \
-  --oracle-template table2_r_sa_qed_oracle_template.json \
-  --quickvina-binary /path/to/QuickVina2-GPU-2-1 \
-  --receptor-file /path/to/7uvu-2-monomers-pdbfixer.pdbqt \
-  --reference-ligand-file /path/to/7uvu-reference.pdb
-```
 
 ---
 
@@ -515,7 +496,7 @@ All defaults live in `core/config.py`. They can be overridden at three levels, i
 
 Each run creates a timestamped directory under `--output-dir`.
 
-### Single-model evolution run
+### Single-model evolution run example
 
 ```
 outputs/runs/
@@ -529,7 +510,7 @@ outputs/runs/
     └── guacamol_report.json    # GuacaMol-style aggregated benchmark report
 ```
 
-### Multi-model comparison run
+### Multi-model comparison run example
 
 ```
 outputs/comparisons/
@@ -541,19 +522,6 @@ outputs/comparisons/
     │   └── ...
     ├── comparison_summary.csv  # All models x seeds x tasks
     └── guacamol_comparison_report.json
-```
-
-### Saturn comparison run
-
-```
-outputs/saturn_comparison/
-└── compare_scalar_vs_nsga2_20260424_120000/
-    ├── seed0_budget1000/
-    │   ├── scalar/             # Scalar aggregation strategy outputs
-    │   └── nsga2/              # NSGA-II strategy outputs
-    ├── seed1_budget1000/
-    │   └── ...
-    └── results_summary.csv     # Strategy x seed x budget: docking %, top-K metrics
 ```
 
 ---
