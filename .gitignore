@@ -5,6 +5,7 @@ skills/
 # Docker
 Dockerfile*
 docker-compose*
+Dockerfile.rapids
 
 # SLURM/HPC scripts
 slurm_scripts/
