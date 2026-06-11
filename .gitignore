@@ -2,6 +2,15 @@
 .DS_Store
 skills/
 
+# Docker
+Dockerfile*
+docker-compose*
+
+# SLURM/HPC scripts
+slurm_scripts/
+*.sbatch
+*.slurm
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
