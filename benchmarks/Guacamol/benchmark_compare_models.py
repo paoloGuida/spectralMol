@@ -147,6 +147,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--python-bin", default=cfg.PYTHON_BIN_DEFAULT, help="Python interpreter used for local evolution and templates.")
     p.add_argument("--output-dir", default=cfg.OUTPUT_COMPARISONS_DIR_DEFAULT_STR, help="Root output directory for comparison runs.")
     p.add_argument(
+        "--dataframe-backend",
+        default="auto",
+        choices=["auto", "pandas", "cudf"],
+        help=(
+            "Backend for summary/groupby aggregation. "
+            "'pandas' always uses pandas. "
+            "'cudf' prefers cuDF and falls back to pandas if unavailable. "
+            "'auto' uses cuDF when available, otherwise pandas."
+        ),
+    )
+    p.add_argument(
         "--equal-initial-population",
         action=argparse.BooleanOptionalAction,
         default=EQUAL_INITIAL_POPULATION_DEFAULT,
@@ -159,6 +170,25 @@ def parse_args() -> argparse.Namespace:
         help="Continue with other models/seeds when one fails.",
     )
     p.add_argument("--dry-run", action="store_true", help="Print commands only, do not execute.")
+    p.add_argument(
+        "--executor",
+        default="thread",
+        choices=["thread", "dask"],
+        help=(
+            "Backend for model/seed job fanout. "
+            "'thread' uses ThreadPoolExecutor (default, always available). "
+            "'dask' uses dask.distributed for cluster-aware parallelism; "
+            "requires dask[distributed] to be installed."
+        ),
+    )
+    p.add_argument(
+        "--dask-scheduler",
+        default=None,
+        help=(
+            "Dask scheduler address (e.g. 'tcp://scheduler:8786'). "
+            "Only used when --executor dask. If not set, Dask creates a local cluster."
+        ),
+    )
     p.add_argument(
         "--graphga-n-jobs",
         type=int,
@@ -241,6 +271,47 @@ def choose_python_bin(cli_python: str) -> str:
     return sys.executable
 
 
+def resolve_dataframe_backend(requested: str) -> str:
+    mode = str(requested).strip().lower()
+    if mode == "pandas":
+        return "pandas"
+    try:
+        import cudf  # noqa: F401
+        import cupy as cp
+
+        if int(cp.cuda.runtime.getDeviceCount()) <= 0:
+            return "pandas"
+        return "cudf"
+    except Exception:
+        return "pandas"
+
+
+def _to_backend_df(df: pd.DataFrame, backend: str):
+    if backend == "cudf":
+        import cudf
+
+        return cudf.from_pandas(df)
+    return df
+
+
+def _to_pandas_df(df):
+    if hasattr(df, "to_pandas"):
+        return df.to_pandas()
+    return df
+
+
+def _flatten_agg_columns(df):
+    cols: list[str] = []
+    for col in df.columns:
+        if isinstance(col, tuple):
+            parts = [str(part) for part in col if str(part)]
+            cols.append("_".join(parts).strip("_"))
+        else:
+            cols.append(str(col))
+    df.columns = cols
+    return df
+
+
 def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
@@ -267,7 +338,7 @@ def render_builtin_local_evolution_command(
     seed: int,
     model_output_dir: Path,
 ) -> list[str]:
-    script = repo_root / "molscore" / "software" / "evolve_vs_molscore_benchmark.py"
+    script = repo_root / "benchmarks" / "Guacamol" / "evolve_vs_molscore_benchmark.py"
     cmd = [
         python_bin,
         str(script),
@@ -800,38 +871,156 @@ def write_requested_generation_exports(
     return written
 
 
-def build_summary_tables(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_summary_tables(raw_df: pd.DataFrame, dataframe_backend: str = "pandas") -> tuple[pd.DataFrame, pd.DataFrame]:
     if raw_df.empty:
         return pd.DataFrame(), pd.DataFrame()
 
-    task_summary = (
-        raw_df.groupby(["model", "task"], as_index=False)
-        .agg(
-            mean_best_score=("best_score", "mean"),
-            std_best_score=("best_score", "std"),
-            mean_avg_score=("avg_score", "mean"),
-            std_avg_score=("avg_score", "std"),
-            mean_n_scored=("n_scored", "mean"),
-            n_runs=("seed", "count"),
-        )
-        .sort_values(["task", "mean_best_score"], ascending=[True, False])
-    )
+    backend = resolve_dataframe_backend(dataframe_backend)
+    df = _to_backend_df(raw_df, backend)
 
-    overall = (
-        task_summary.groupby("model", as_index=False)
-        .agg(
-            sum_task_best_score=("mean_best_score", "sum"),
-            sum_task_avg_score=("mean_avg_score", "sum"),
-            mean_task_best_score=("mean_best_score", "mean"),
-            mean_task_avg_score=("mean_avg_score", "mean"),
-            mean_task_std_best=("std_best_score", "mean"),
-            n_tasks=("task", "count"),
-            total_runs=("n_runs", "sum"),
-        )
-        .sort_values("sum_task_best_score", ascending=False)
+    task_summary = df.groupby(["model", "task"]).agg(
+        {
+            "best_score": ["mean", "std"],
+            "avg_score": ["mean", "std"],
+            "n_scored": ["mean"],
+            "seed": ["count"],
+        }
+    ).reset_index()
+    task_summary = _flatten_agg_columns(task_summary).rename(
+        columns={
+            "best_score_mean": "mean_best_score",
+            "best_score_std": "std_best_score",
+            "avg_score_mean": "mean_avg_score",
+            "avg_score_std": "std_avg_score",
+            "n_scored_mean": "mean_n_scored",
+            "seed_count": "n_runs",
+        }
     )
+    task_summary = task_summary.sort_values(["task", "mean_best_score"], ascending=[True, False])
+
+    overall = task_summary.groupby(["model"]).agg(
+        {
+            "mean_best_score": ["sum", "mean"],
+            "mean_avg_score": ["sum", "mean"],
+            "std_best_score": ["mean"],
+            "task": ["count"],
+            "n_runs": ["sum"],
+        }
+    ).reset_index()
+    overall = _flatten_agg_columns(overall).rename(
+        columns={
+            "mean_best_score_sum": "sum_task_best_score",
+            "mean_best_score_mean": "mean_task_best_score",
+            "mean_avg_score_sum": "sum_task_avg_score",
+            "mean_avg_score_mean": "mean_task_avg_score",
+            "std_best_score_mean": "mean_task_std_best",
+            "task_count": "n_tasks",
+            "n_runs_sum": "total_runs",
+        }
+    )
+    overall = overall.sort_values("sum_task_best_score", ascending=False)
+
+    task_summary = _to_pandas_df(task_summary)
+    overall = _to_pandas_df(overall)
     overall["rank"] = np.arange(1, len(overall) + 1)
     return task_summary, overall
+
+
+def build_generation_summary_tables(
+    gen_raw_df: pd.DataFrame,
+    dataframe_backend: str = "pandas",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if gen_raw_df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    backend = resolve_dataframe_backend(dataframe_backend)
+    df = _to_backend_df(gen_raw_df, backend)
+
+    gen_summary_df = df.groupby(["model", "task", "generation"]).agg(
+        {
+            "mean_score": ["mean"],
+            "best_score_so_far": ["mean"],
+            "best_score_gen": ["mean"],
+            "valid_rate": ["mean"],
+            "valid_count": ["mean"],
+            "unique_valid_count": ["mean"],
+            "new_unique_count": ["mean"],
+            "diversity_mean": ["mean"],
+            "seed": ["nunique"],
+        }
+    ).reset_index()
+    gen_summary_df = _flatten_agg_columns(gen_summary_df).rename(
+        columns={
+            "mean_score_mean": "mean_score",
+            "best_score_so_far_mean": "mean_best_score_so_far",
+            "best_score_gen_mean": "mean_best_score_gen",
+            "valid_rate_mean": "mean_valid_rate",
+            "valid_count_mean": "mean_valid_count",
+            "unique_valid_count_mean": "mean_unique_valid_count",
+            "new_unique_count_mean": "mean_new_unique_count",
+            "diversity_mean_mean": "mean_diversity",
+            "seed_nunique": "n_runs",
+        }
+    )
+    gen_summary_df = gen_summary_df.sort_values(["task", "generation", "model"], ascending=[True, True, True])
+
+    gen_model_df = gen_summary_df.groupby(["model", "generation"]).agg(
+        {
+            "mean_score": ["mean"],
+            "mean_best_score_so_far": ["mean"],
+            "mean_best_score_gen": ["mean"],
+            "mean_valid_rate": ["mean"],
+            "mean_diversity": ["mean"],
+            "task": ["nunique"],
+            "n_runs": ["mean"],
+        }
+    ).reset_index()
+    gen_model_df = _flatten_agg_columns(gen_model_df).rename(
+        columns={
+            "mean_score_mean": "mean_score",
+            "mean_best_score_so_far_mean": "mean_best_score_so_far",
+            "mean_best_score_gen_mean": "mean_best_score_gen",
+            "mean_valid_rate_mean": "mean_valid_rate",
+            "mean_diversity_mean": "mean_diversity",
+            "task_nunique": "n_tasks",
+            "n_runs_mean": "n_runs",
+        }
+    )
+    gen_model_df = gen_model_df.sort_values(["generation", "model"], ascending=[True, True])
+
+    return _to_pandas_df(gen_summary_df), _to_pandas_df(gen_model_df)
+
+
+def build_runtime_summary_table(
+    runtime_df: pd.DataFrame,
+    dataframe_backend: str = "pandas",
+) -> pd.DataFrame:
+    if runtime_df.empty:
+        return pd.DataFrame()
+
+    base_df = runtime_df.copy()
+    base_df["failed_flag"] = (base_df["status"] != "ok").astype(int)
+    backend = resolve_dataframe_backend(dataframe_backend)
+    df = _to_backend_df(base_df, backend)
+
+    runtime_summary_df = df.groupby(["model"]).agg(
+        {
+            "elapsed_seconds": ["mean", "min", "max"],
+            "seed": ["count"],
+            "failed_flag": ["sum"],
+        }
+    ).reset_index()
+    runtime_summary_df = _flatten_agg_columns(runtime_summary_df).rename(
+        columns={
+            "elapsed_seconds_mean": "mean_elapsed_seconds",
+            "elapsed_seconds_min": "min_elapsed_seconds",
+            "elapsed_seconds_max": "max_elapsed_seconds",
+            "seed_count": "n_runs",
+            "failed_flag_sum": "n_failed",
+        }
+    )
+    runtime_summary_df = runtime_summary_df.sort_values(["mean_elapsed_seconds", "model"], ascending=[True, True])
+    return _to_pandas_df(runtime_summary_df)
 
 
 def resolve_parallel_jobs(n_jobs: int) -> int:
@@ -851,6 +1040,89 @@ def resolve_parallel_jobs(n_jobs: int) -> int:
     if requested <= 0:
         return n_jobs
     return max(1, min(requested, n_jobs))
+
+
+def _run_jobs_dask(
+    *,
+    jobs: list[dict[str, Any]],
+    execute_job: Any,
+    collect_result: Any,
+    dask_scheduler: str | None,
+    parallel_jobs: int,
+    continue_on_error: bool,
+) -> None:
+    """
+    Execute model/seed jobs using Dask for distributed parallelism.
+
+    Falls back to sequential execution if dask is not available.
+    Each job launches a subprocess (see execute_job), so Dask is used here
+    for task scheduling and result aggregation, not for GPU kernel dispatch.
+
+    Args:
+        jobs: list of job dicts (model, seed, cmd, log_path, model_seed_dir).
+        execute_job: callable(job) -> (rows, gen_rows, n_exports, failure, runtime_row).
+        collect_result: callable to merge result into outer accumulators.
+        dask_scheduler: optional Dask scheduler address; None = local cluster.
+        parallel_jobs: max concurrent workers (used for local cluster sizing).
+        continue_on_error: whether to continue after individual failures.
+    """
+    try:
+        import dask
+        from dask.distributed import Client, as_completed as dask_as_completed
+    except ImportError:
+        print(
+            "[dask] dask.distributed not available, falling back to sequential execution.",
+            flush=True,
+        )
+        for job in jobs:
+            rows, gen_rows, n_exports, failure, runtime_row = execute_job(job)
+            collect_result(rows, gen_rows, n_exports, failure, runtime_row, job)
+        return
+
+    n_workers = max(1, parallel_jobs)
+    if dask_scheduler:
+        print(f"[dask] connecting to scheduler: {dask_scheduler}", flush=True)
+        client = Client(dask_scheduler)
+    else:
+        print(f"[dask] starting local cluster with {n_workers} workers", flush=True)
+        client = Client(n_workers=n_workers, threads_per_worker=1)
+
+    print(f"[dask] submitting {len(jobs)} jobs", flush=True)
+
+    try:
+        futures = {client.submit(execute_job, job, pure=False): job for job in jobs}
+        for future in dask_as_completed(futures):
+            job = futures[future]
+            try:
+                rows, gen_rows, n_exports, failure, runtime_row = future.result()
+            except Exception as exc:
+                rows, gen_rows, n_exports = [], [], 0
+                failure = {
+                    "model": str(job["model"]),
+                    "seed": int(job["seed"]),
+                    "error": f"Unhandled exception: {exc}",
+                }
+                runtime_row = {
+                    "model": str(job["model"]),
+                    "seed": int(job["seed"]),
+                    "status": "failed",
+                    "return_code": -1,
+                    "started_at_utc": "",
+                    "finished_at_utc": "",
+                    "elapsed_seconds": float("nan"),
+                    "log_path": str(job["log_path"]),
+                    "model_seed_dir": str(job["model_seed_dir"]),
+                    "dry_run": False,
+                    "n_task_rows": 0,
+                    "n_generation_rows": 0,
+                }
+            collect_result(rows, gen_rows, n_exports, failure, runtime_row, job)
+            if failure and not continue_on_error:
+                for f in futures:
+                    f.cancel()
+                raise RuntimeError(str(failure["error"]))
+    finally:
+        client.close()
 
 
 def bootstrap_scoring_envs(
@@ -1066,6 +1338,11 @@ def main() -> int:
             )
 
     parallel_jobs = resolve_parallel_jobs(len(jobs))
+    dataframe_backend = resolve_dataframe_backend(getattr(args, "dataframe_backend", "auto"))
+    print(
+        f"[backend] dataframe_backend requested={getattr(args, 'dataframe_backend', 'auto')} resolved={dataframe_backend}",
+        flush=True,
+    )
     run_meta = {
         "benchmark": args.benchmark,
         "custom_benchmark": custom_benchmark,
@@ -1086,6 +1363,8 @@ def main() -> int:
         "model_spec_file": str(model_spec_path),
         "examples_root": examples_root,
         "python_bin": python_bin,
+        "dataframe_backend_requested": str(getattr(args, "dataframe_backend", "auto")),
+        "dataframe_backend_resolved": str(dataframe_backend),
         "dry_run": bool(args.dry_run),
         "continue_on_error": bool(args.continue_on_error),
         "parallel_jobs": int(parallel_jobs),
@@ -1193,61 +1472,77 @@ def main() -> int:
             )
         return rows, gen_rows, len(written_exports), None, runtime_row
 
+    def _collect_result(
+        rows: list, gen_rows: list, n_exports: int,
+        failure: dict | None, runtime_row: dict, job: dict,
+    ) -> None:
+        """Merge one job result into the running accumulators."""
+        if failure:
+            if args.continue_on_error:
+                failures.append(failure)
+            else:
+                raise RuntimeError(str(failure["error"]))
+        all_rows.extend(rows)
+        all_gen_rows.extend(gen_rows)
+        runtime_rows.append(runtime_row)
+        print(
+            f"[done] model={job['model']} seed={job['seed']} rows={len(rows)} "
+            f"gen_rows={len(gen_rows)} exports={n_exports}"
+            + (" failed=1" if failure else ""),
+            flush=True,
+        )
+
     if jobs:
-        print(f"[run] scheduling {len(jobs)} jobs with max_workers={parallel_jobs}", flush=True)
-        with cf.ThreadPoolExecutor(max_workers=parallel_jobs) as executor:
-            future_to_job = {executor.submit(execute_job, job): job for job in jobs}
-            for future in cf.as_completed(future_to_job):
-                job = future_to_job[future]
-                try:
-                    rows, gen_rows, n_exports, failure, runtime_row = future.result()
-                except Exception as exc:
-                    rows = []
-                    gen_rows = []
-                    n_exports = 0
-                    failure = {
-                        "model": str(job["model"]),
-                        "seed": int(job["seed"]),
-                        "error": f"Unhandled exception: {exc}",
-                    }
-                    runtime_row = {
-                        "model": str(job["model"]),
-                        "seed": int(job["seed"]),
-                        "status": "failed",
-                        "return_code": -1,
-                        "started_at_utc": "",
-                        "finished_at_utc": "",
-                        "elapsed_seconds": float("nan"),
-                        "log_path": str(Path(job["log_path"]).resolve()),
-                        "model_seed_dir": str(Path(job["model_seed_dir"]).resolve()),
-                        "dry_run": bool(args.dry_run),
-                        "n_task_rows": 0,
-                        "n_generation_rows": 0,
-                    }
+        executor_backend = getattr(args, "executor", "thread")
+        dask_scheduler = getattr(args, "dask_scheduler", None)
 
-                if failure:
-                    if args.continue_on_error:
-                        failures.append(failure)
-                    else:
-                        for pending in future_to_job:
-                            if pending is not future:
-                                pending.cancel()
-                        raise RuntimeError(str(failure["error"]))
-
-                all_rows.extend(rows)
-                all_gen_rows.extend(gen_rows)
-                runtime_rows.append(runtime_row)
-                print(
-                    f"[done] model={job['model']} seed={job['seed']} rows={len(rows)} gen_rows={len(gen_rows)} exports={n_exports}"
-                    + (" failed=1" if failure else ""),
-                    flush=True,
-                )
+        if executor_backend == "dask":
+            _run_jobs_dask(
+                jobs=jobs,
+                execute_job=execute_job,
+                collect_result=_collect_result,
+                dask_scheduler=dask_scheduler,
+                parallel_jobs=parallel_jobs,
+                continue_on_error=args.continue_on_error,
+            )
+        else:
+            print(f"[run] scheduling {len(jobs)} jobs with ThreadPoolExecutor max_workers={parallel_jobs}", flush=True)
+            with cf.ThreadPoolExecutor(max_workers=parallel_jobs) as executor:
+                future_to_job = {executor.submit(execute_job, job): job for job in jobs}
+                for future in cf.as_completed(future_to_job):
+                    job = future_to_job[future]
+                    try:
+                        rows, gen_rows, n_exports, failure, runtime_row = future.result()
+                    except Exception as exc:
+                        rows = []
+                        gen_rows = []
+                        n_exports = 0
+                        failure = {
+                            "model": str(job["model"]),
+                            "seed": int(job["seed"]),
+                            "error": f"Unhandled exception: {exc}",
+                        }
+                        runtime_row = {
+                            "model": str(job["model"]),
+                            "seed": int(job["seed"]),
+                            "status": "failed",
+                            "return_code": -1,
+                            "started_at_utc": "",
+                            "finished_at_utc": "",
+                            "elapsed_seconds": float("nan"),
+                            "log_path": str(Path(job["log_path"]).resolve()),
+                            "model_seed_dir": str(Path(job["model_seed_dir"]).resolve()),
+                            "dry_run": bool(args.dry_run),
+                            "n_task_rows": 0,
+                            "n_generation_rows": 0,
+                        }
+                    _collect_result(rows, gen_rows, n_exports, failure, runtime_row, job)
 
     raw_df = pd.DataFrame(all_rows)
     raw_path = out_root / "comparison_raw.tsv"
     raw_df.to_csv(raw_path, sep="\t", index=False)
 
-    task_summary, overall = build_summary_tables(raw_df)
+    task_summary, overall = build_summary_tables(raw_df, dataframe_backend=dataframe_backend)
     task_path = out_root / "comparison_task_summary.tsv"
     overall_path = out_root / "comparison_overall.tsv"
     task_summary.to_csv(task_path, sep="\t", index=False)
@@ -1257,38 +1552,10 @@ def main() -> int:
     gen_raw_path = out_root / "comparison_generation_raw.tsv"
     gen_raw_df.to_csv(gen_raw_path, sep="\t", index=False)
 
-    if gen_raw_df.empty:
-        gen_summary_df = pd.DataFrame()
-        gen_model_df = pd.DataFrame()
-    else:
-        gen_summary_df = (
-            gen_raw_df.groupby(["model", "task", "generation"], as_index=False)
-            .agg(
-                mean_score=("mean_score", "mean"),
-                mean_best_score_so_far=("best_score_so_far", "mean"),
-                mean_best_score_gen=("best_score_gen", "mean"),
-                mean_valid_rate=("valid_rate", "mean"),
-                mean_valid_count=("valid_count", "mean"),
-                mean_unique_valid_count=("unique_valid_count", "mean"),
-                mean_new_unique_count=("new_unique_count", "mean"),
-                mean_diversity=("diversity_mean", "mean"),
-                n_runs=("seed", "nunique"),
-            )
-            .sort_values(["task", "generation", "model"], ascending=[True, True, True])
-        )
-        gen_model_df = (
-            gen_summary_df.groupby(["model", "generation"], as_index=False)
-            .agg(
-                mean_score=("mean_score", "mean"),
-                mean_best_score_so_far=("mean_best_score_so_far", "mean"),
-                mean_best_score_gen=("mean_best_score_gen", "mean"),
-                mean_valid_rate=("mean_valid_rate", "mean"),
-                mean_diversity=("mean_diversity", "mean"),
-                n_tasks=("task", "nunique"),
-                n_runs=("n_runs", "mean"),
-            )
-            .sort_values(["generation", "model"], ascending=[True, True])
-        )
+    gen_summary_df, gen_model_df = build_generation_summary_tables(
+        gen_raw_df,
+        dataframe_backend=dataframe_backend,
+    )
 
     gen_summary_path = out_root / "comparison_generation_summary.tsv"
     gen_model_path = out_root / "comparison_generation_model_summary.tsv"
@@ -1298,20 +1565,10 @@ def main() -> int:
     runtime_df = pd.DataFrame(runtime_rows)
     runtime_path = out_root / "model_runtime.tsv"
     runtime_df.to_csv(runtime_path, sep="\t", index=False)
-    if runtime_df.empty:
-        runtime_summary_df = pd.DataFrame()
-    else:
-        runtime_summary_df = (
-            runtime_df.groupby(["model"], as_index=False)
-            .agg(
-                mean_elapsed_seconds=("elapsed_seconds", "mean"),
-                min_elapsed_seconds=("elapsed_seconds", "min"),
-                max_elapsed_seconds=("elapsed_seconds", "max"),
-                n_runs=("seed", "count"),
-                n_failed=("status", lambda s: int((s != "ok").sum())),
-            )
-            .sort_values(["mean_elapsed_seconds", "model"], ascending=[True, True])
-        )
+    runtime_summary_df = build_runtime_summary_table(
+        runtime_df,
+        dataframe_backend=dataframe_backend,
+    )
     runtime_summary_path = out_root / "model_runtime_summary.tsv"
     runtime_summary_df.to_csv(runtime_summary_path, sep="\t", index=False)
 

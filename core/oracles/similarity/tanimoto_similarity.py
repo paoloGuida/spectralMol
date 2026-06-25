@@ -13,19 +13,28 @@ class TanimotoSimilarity(OracleComponent):
         self.radius = self.parameters.specific_parameters.get("radius", 3)
         self.use_counts = self.parameters.specific_parameters.get("use_counts", True)
         self.use_features = self.parameters.specific_parameters.get("use_features", True)
-        self.reference_smiles = self.parameters.specific_parameters.get(self.component_specific_parameters.SMILES, [])
+        self.reference_smiles = self.parameters.specific_parameters.get("smiles", [])
         self.reference_mols = [Chem.MolFromSmiles(smiles) for smiles in self.reference_smiles]
         self.reference_fingerprints = [
             GetMorganFingerprint(mol=mol, radius=self.radius, useCounts=self.use_counts, useFeatures=self.use_features) for mol in self.reference_mols
         ]
 
     def __call__(self, mols: np.ndarray[Mol]) -> np.ndarray[float]:
-        sims = []
-        fps = [GetMorganFingerprint(mol=mol, radius=self.radius, useCounts=self.use_counts, useFeatures=self.use_features) for mol in mols]
+        if len(self.reference_fingerprints) == 0:
+            return np.zeros((len(mols),), dtype=np.float32)
 
-        for fp in fps:
-            sims.append(np.max(
-                [BulkTanimotoSimilarity(fp, ref_fp) for ref_fp in self.reference_fingerprints])
+        fps = [
+            GetMorganFingerprint(
+                mol=mol,
+                radius=self.radius,
+                useCounts=self.use_counts,
+                useFeatures=self.use_features,
             )
+            for mol in mols
+        ]
 
-        return np.array(sims, dtype=np.float32)
+        sims = np.empty((len(fps),), dtype=np.float32)
+        for idx, fp in enumerate(fps):
+            sims[idx] = float(max(BulkTanimotoSimilarity(fp, self.reference_fingerprints)))
+
+        return sims
