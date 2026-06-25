@@ -19,7 +19,8 @@ An evolutionary drug discovery framework that optimises molecules against multi-
    - [Scalar vs NSGA-II comparison](#scalar-vs-nsga-ii-comparison)
 6. [Configuration Reference](#configuration-reference)
 7. [Output Files](#output-files)
-8. [Extending the Framework](#extending-the-framework)
+8. [Matrix Results (May 2026)](#matrix-results-may-2026)
+9. [Extending the Framework](#extending-the-framework)
 
 ---
 
@@ -69,22 +70,55 @@ molevoDrugDiscovery/
 │       ├── compare_scalar_vs_nsga2_saturn.py # Scalar vs NSGA-II comparison
 │       ├── guacamol_reports.py               # Report writer for Saturn runs
 │       └── table2_r_sa_qed_oracle_template.json  # Default oracle config (7UVU target)
-│
-└── Saturn_TestCase/               # Reference run artefacts for run 46364391
 ```
 
 ---
 
 ## Environment Setup
 
-### 1. Create the conda environment
+### Recommended: Using Conda Environment (Automated)
+
+The easiest way to get started is using the provided `environment.yml`:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/molevoDrugDiscovery.git
+cd molevoDrugDiscovery
+
+# Create and activate the conda environment
+conda env create -f environment.yml
+conda activate molevoDrugDiscovery
+```
+
+This single command installs all core dependencies including:
+- Python 3.12
+- RDKit, OpenBabel (via conda-forge for correct native binaries)
+- NumPy, Pandas, SciPy, Joblib, Tqdm
+- Selfies, Guacamol, MolScore, Morfeus
+- Optional: PyTorch, Dask, RAPIDS (for GPU acceleration)
+
+You can then proceed directly to [Running Benchmarks](#guacamol-benchmark).
+
+> **Optional: GPU/RAPIDS Support**
+> For GPU-accelerated diversity filtering (requires NVIDIA GPU with CUDA):
+> ```bash
+> pip install cupy-cuda12x  # Replace '12x' with your CUDA version (e.g., cuda121)
+> ```
+
+---
+
+### Alternative: Manual Installation
+
+If you prefer manual control over dependencies, follow these steps:
+
+#### 1. Create the conda environment
 
 ```bash
 conda create -n molevoDrugDiscovery python=3.10
 conda activate molevoDrugDiscovery
 ```
 
-### 2. Install compiled dependencies via conda-forge
+#### 2. Install compiled dependencies via conda-forge
 
 RDKit and OpenBabel must be installed through conda to get correct native binaries:
 
@@ -92,7 +126,7 @@ RDKit and OpenBabel must be installed through conda to get correct native binari
 conda install -c conda-forge numpy pandas scipy joblib tqdm rdkit openbabel
 ```
 
-### 3. Install Python packages via pip
+#### 3. Install Python packages via pip
 
 ```bash
 pip install selfies guacamol morfeus-ml molscore
@@ -104,20 +138,21 @@ pip install selfies guacamol morfeus-ml molscore
 > pip install molbloom
 > ```
 
-### 4. (Optional) Install additional packages
+#### 4. (Optional) Install additional packages
 
+For distributed computing and GPU acceleration:
 ```bash
 pip install torch dask distributed dask-jobqueue flask streamlit streamlit-plotly-events plotly seaborn
 ```
 
-### 5. (Optional) Docking dependencies
+#### 5. (Optional) Docking dependencies
 
 For Saturn oracle scoring with QuickVina2-GPU you will need:
 
 - A compiled **QuickVina2-GPU-2.1** binary (see the [Vina-GPU GitHub repository](https://github.com/DeltaGroupNJUPT/Vina-GPU))
-- The **receptor PDBQT** and **reference ligand PDB** for your target (7UVU example files are referenced in `Saturn_TestCase/`)
+- The **receptor PDBQT** and **reference ligand PDB** for your target
 
-### 6. Make the `Core` package importable
+#### 6. Make the `Core` package importable
 
 The benchmark scripts automatically insert the repository root into `sys.path`, so no installation step is required. If you import `core` from a custom script, either:
 
@@ -423,26 +458,7 @@ python compare_scalar_vs_nsga2_saturn.py \
 | `--output-dir` | `outputs/compare_scalar_vs_nsga2` | Output root |
 | `--run-id` | *(auto timestamp)* | Run identifier appended to output paths |
 
-#### Replicating run 46364391
 
-The exact settings for the reference IBEX cluster run are recorded in `Saturn_TestCase/software_saturn46364391/`. To reproduce locally:
-
-```bash
-cd benchmarks/Saturn
-
-python compare_scalar_vs_nsga2_saturn.py \
-  --seeds 0,1,2,3,4,5,6,7,8,9 \
-  --budgets 1000 \
-  --population-size 256 \
-  --batch-size 32 \
-  --seed-pool-size 256 \
-  --init-population-mode graphga_zinc250k \
-  --graphga-zinc250k-seed-smiles-file /path/to/zinc250k_ranked_qed_sa.smi \
-  --oracle-template table2_r_sa_qed_oracle_template.json \
-  --quickvina-binary /path/to/QuickVina2-GPU-2-1 \
-  --receptor-file /path/to/7uvu-2-monomers-pdbfixer.pdbqt \
-  --reference-ligand-file /path/to/7uvu-reference.pdb
-```
 
 ---
 
@@ -480,7 +496,7 @@ All defaults live in `core/config.py`. They can be overridden at three levels, i
 
 Each run creates a timestamped directory under `--output-dir`.
 
-### Single-model evolution run
+### Single-model evolution run example
 
 ```
 outputs/runs/
@@ -494,7 +510,7 @@ outputs/runs/
     └── guacamol_report.json    # GuacaMol-style aggregated benchmark report
 ```
 
-### Multi-model comparison run
+### Multi-model comparison run example
 
 ```
 outputs/comparisons/
@@ -508,20 +524,46 @@ outputs/comparisons/
     └── guacamol_comparison_report.json
 ```
 
-### Saturn comparison run
-
-```
-outputs/saturn_comparison/
-└── compare_scalar_vs_nsga2_20260424_120000/
-    ├── seed0_budget1000/
-    │   ├── scalar/             # Scalar aggregation strategy outputs
-    │   └── nsga2/              # NSGA-II strategy outputs
-    ├── seed1_budget1000/
-    │   └── ...
-    └── results_summary.csv     # Strategy x seed x budget: docking %, top-K metrics
-```
-
 ---
+
+  ## Matrix Results (May 2026)
+
+  Round-2 cluster matrix runs completed successfully for all four configurations:
+
+  - baseline_cpu: thread executor + pandas backend
+  - dask_cpu: dask executor + pandas backend
+  - rapids_v100: thread executor + dataframe backend auto (resolved to cuDF on V100)
+  - dask_rapids_v100: dask executor + dataframe backend auto (resolved to cuDF on V100)
+
+  ### Runtime Summary
+
+  | Config | Mean elapsed seconds | Speedup vs baseline | Time reduction vs baseline |
+  |---|---:|---:|---:|
+  | baseline_cpu | 1541.2372 | 1.0000x | 0.00% |
+  | dask_cpu | 1463.3349 | 1.0532x | 5.05% |
+  | rapids_v100 | 1349.2829 | 1.1423x | 12.45% |
+  | dask_rapids_v100 | 1316.1125 | 1.1711x | 14.61% |
+
+  ### Quality Check
+
+  - Aggregate score metrics are matched across configurations (differences only at floating-point precision).
+  - n_failed is 0 for all matrix runs.
+
+  ### Recommended Default Launch Mode
+
+  - Use dask_rapids_v100 for production-scale matrix runs.
+  - Launch script: slurm_scripts/compare_matrix_dask_rapids_v100.sbatch
+
+  ### Report and Data Artifacts
+
+  - One-page report: molscore/outputs/comparison_matrix/matrix_report_20260506_round2.md
+  - Speedup table: molscore/outputs/comparison_matrix/speedup_matrix_20260506_round2.tsv
+  - Baseline runtime summary: molscore/outputs/comparison_matrix/baseline_cpu/compare_GuacaMol_20260506_120038/model_runtime_summary.tsv
+  - Dask CPU runtime summary: molscore/outputs/comparison_matrix/dask_cpu/compare_GuacaMol_20260506_120224/model_runtime_summary.tsv
+  - RAPIDS V100 runtime summary: molscore/outputs/comparison_matrix/rapids_v100/compare_GuacaMol_20260506_120813/model_runtime_summary.tsv
+  - Dask + RAPIDS V100 runtime summary: molscore/outputs/comparison_matrix/dask_rapids_v100/compare_GuacaMol_20260506_121020/model_runtime_summary.tsv
+
+  ---
 
 ## Extending the Framework
 

@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
+
+try:
+    from core.gpu_utils import pairwise_tanimoto_diversity_from_smiles
+except Exception:
+    pairwise_tanimoto_diversity_from_smiles = None
 
 
 PREFERRED_SCORE_COLUMNS = (
@@ -15,6 +21,14 @@ PREFERRED_SCORE_COLUMNS = (
     "score",
     "total_score",
 )
+
+_DIVERSITY_GPU_ENABLED = os.environ.get("MOLEVO_DIVERSITY_GPU_ENABLED", "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+_DIVERSITY_GPU_MIN_N = max(1, int(os.environ.get("MOLEVO_SATURN_DIVERSITY_GPU_MIN_N", "64")))
 
 
 def _parse_bool_like(values: pd.Series, default: bool = True) -> pd.Series:
@@ -62,6 +76,24 @@ def _pairwise_tanimoto_diversity(smiles: Iterable[str], max_n: int = 128) -> flo
         return 0.0
     if len(smiles_list) > max_n:
         smiles_list = smiles_list[:max_n]
+
+    # Prefer the shared GPU utility when available; keep the CPU fallback for portability.
+    if (
+        pairwise_tanimoto_diversity_from_smiles is not None
+        and _DIVERSITY_GPU_ENABLED
+        and len(smiles_list) >= _DIVERSITY_GPU_MIN_N
+    ):
+        try:
+            return pairwise_tanimoto_diversity_from_smiles(
+                smiles_list,
+                max_n=int(max_n),
+                radius=2,
+                fp_size=2048,
+                prefer_gpu=True,
+            )
+        except Exception:
+            pass
+
     try:
         from rdkit import Chem, DataStructs
         from rdkit.Chem import AllChem

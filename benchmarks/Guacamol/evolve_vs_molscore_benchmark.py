@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in _sys.path:
 
 from core import config as cfg
 from core.reports import write_guacamol_like_reports
+from core.profiling import get_profiler, enable_profiling
 
 DEFAULT_SEEDS: list[str] = list(cfg.FALLBACK_SEED_SMILES)
 ALLOWED_ATOMIC_NUMBERS: list[int] = list(cfg.ALLOWED_ATOMIC_NUMBERS)
@@ -1531,6 +1532,7 @@ def run_strategy(
                     task_name = str(task_cfg.get("task", task_name))
                 task_counter = f"{task_idx}/{total_tasks}" if total_tasks else str(task_idx)
                 print(f"[{strategy}] task {task_counter} :: {task_name}", flush=True)
+                task_t0 = time.perf_counter()
                 result = evolve_on_task(
                     ms_task=ms_task,
                     strategy=strategy,
@@ -1547,6 +1549,7 @@ def run_strategy(
                     stagnation_mutation_boost=stagnation_mutation_boost,
                     rng=rng,
                 )
+                task_elapsed = time.perf_counter() - task_t0
         except Exception as exc:
             msg = str(exc).strip() or repr(exc)
             task_failures.append(
@@ -1571,7 +1574,8 @@ def run_strategy(
         rows.append(result)
         print(
             f"[{strategy}] done {result.task} :: best={result.best_score:.4f} "
-            f"top10={result.mean_top10:.4f} unique={result.unique_molecules}",
+            f"top10={result.mean_top10:.4f} unique={result.unique_molecules} "
+            f"time={task_elapsed:.2f}s",
             flush=True,
         )
 
@@ -1702,7 +1706,17 @@ def build_comparison_df(evo_df: pd.DataFrame, rnd_df: pd.DataFrame) -> pd.DataFr
 
 
 def main() -> int:
+    # Phase 0: Add high-level timing measurements
+    import time
+    overall_start = time.perf_counter()
+    stage_timings = {}
+    
+    # Enable profiling for Phase 0 instrumentation
+    enable_profiling()
+    
     args = parse_args()
+    
+    # Time: argument parsing
     include = parse_csv_list(args.include)
     exclude = parse_csv_list(args.exclude)
 
@@ -1768,6 +1782,10 @@ def main() -> int:
     (root / "run_meta.json").write_text(json.dumps(run_meta, indent=2), encoding="utf-8")
 
     print(f"Output root: {root}", flush=True)
+    
+    # Phase 0: Time evolution strategy
+    evo_start = time.perf_counter()
+    
     if args.objective_backend == "molscore":
         evo_dir, evo_df = run_strategy(
             strategy="evolution",
@@ -1814,11 +1832,28 @@ def main() -> int:
             saturn_allow_oracle_repeats=args.saturn_allow_oracle_repeats,
             saturn_task_name=args.saturn_task_name,
         )
+    
+    # Phase 0: Record evolution timing
+    evo_elapsed = time.perf_counter() - evo_start
+    stage_timings["evolution"] = evo_elapsed
 
     if args.skip_random_baseline:
         print(f"Evolution summary: {evo_dir / 'strategy_summary.csv'}", flush=True)
+        
+        # Save Phase 0 profiling data
+        stage_timings["total"] = time.perf_counter() - overall_start
+        profiling_output = root / "phase0_timing_report.json"
+        with open(profiling_output, "w") as f:
+            json.dump(stage_timings, f, indent=2)
+        print(f"[Phase 0] Timing report saved to {profiling_output}", flush=True)
+        print(f"[Phase 0] Evolution time: {stage_timings['evolution']:.2f}s", flush=True)
+        print(f"[Phase 0] Total time: {stage_timings['total']:.2f}s", flush=True)
+        
         return 0
 
+    # Phase 0: Time random baseline
+    rnd_start = time.perf_counter()
+    
     if args.objective_backend == "molscore":
         rnd_dir, rnd_df = run_strategy(
             strategy="random",
@@ -1865,6 +1900,10 @@ def main() -> int:
             saturn_allow_oracle_repeats=args.saturn_allow_oracle_repeats,
             saturn_task_name=args.saturn_task_name,
         )
+    
+    # Phase 0: Record random baseline timing
+    rnd_elapsed = time.perf_counter() - rnd_start
+    stage_timings["random_baseline"] = rnd_elapsed
 
     cmp_df = build_comparison_df(evo_df=evo_df, rnd_df=rnd_df)
     cmp_path = root / "comparison_evolution_vs_random.csv"
@@ -1873,6 +1912,17 @@ def main() -> int:
     print(f"Evolution summary: {evo_dir / 'strategy_summary.csv'}", flush=True)
     print(f"Random summary:    {rnd_dir / 'strategy_summary.csv'}", flush=True)
     print(f"Comparison file:   {cmp_path}", flush=True)
+    
+    # Phase 0: Save timing report
+    stage_timings["total"] = time.perf_counter() - overall_start
+    profiling_output = root / "phase0_timing_report.json"
+    with open(profiling_output, "w") as f:
+        json.dump(stage_timings, f, indent=2)
+    print(f"[Phase 0] Timing report saved to {profiling_output}", flush=True)
+    print(f"[Phase 0] Evolution time: {stage_timings['evolution']:.2f}s", flush=True)
+    print(f"[Phase 0] Random baseline time: {stage_timings['random_baseline']:.2f}s", flush=True)
+    print(f"[Phase 0] Total time: {stage_timings['total']:.2f}s", flush=True)
+    
     return 0
 
 

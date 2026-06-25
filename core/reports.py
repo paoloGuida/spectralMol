@@ -2,11 +2,23 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
+
+from .gpu_utils import pairwise_tanimoto_diversity_from_smiles
+
+
+_DIVERSITY_GPU_ENABLED = os.environ.get("MOLEVO_DIVERSITY_GPU_ENABLED", "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+_DIVERSITY_GPU_MIN_N = max(1, int(os.environ.get("MOLEVO_DIVERSITY_GPU_MIN_N", "512")))
 
 
 PREFERRED_SCORE_COLUMNS = (
@@ -131,38 +143,19 @@ def _pairwise_tanimoto_diversity(smiles: Iterable[str], max_n: int = 128) -> flo
         return 0.0
     if len(smiles_list) > max_n:
         smiles_list = smiles_list[:max_n]
+
+    # GPU path helps for larger sets; small sets are typically faster on CPU.
+    prefer_gpu = bool(_DIVERSITY_GPU_ENABLED and len(smiles_list) >= _DIVERSITY_GPU_MIN_N)
     try:
-        from rdkit import Chem, DataStructs
-        from rdkit.Chem import AllChem
+        return pairwise_tanimoto_diversity_from_smiles(
+            smiles_list,
+            max_n=int(max_n),
+            radius=2,
+            fp_size=2048,
+            prefer_gpu=prefer_gpu,
+        )
     except Exception:
         return float("nan")
-
-    morgan_gen = None
-    try:
-        morgan_gen = AllChem.GetMorganGenerator(radius=2, fpSize=2048)
-    except Exception:
-        morgan_gen = None
-
-    fps = []
-    for smi in smiles_list:
-        mol = Chem.MolFromSmiles(smi)
-        if mol is None:
-            continue
-        if morgan_gen is not None:
-            fps.append(morgan_gen.GetFingerprint(mol))
-        else:
-            fps.append(AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=2048))
-    if len(fps) <= 1:
-        return 0.0
-
-    dsum = 0.0
-    count = 0
-    for i in range(len(fps)):
-        sims = DataStructs.BulkTanimotoSimilarity(fps[i], fps[i + 1 :])
-        for sim in sims:
-            dsum += 1.0 - float(sim)
-            count += 1
-    return float(dsum / count) if count else 0.0
 
 
 def write_guacamol_like_reports(task_dir: Path) -> bool:
