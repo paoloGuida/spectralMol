@@ -21,12 +21,6 @@ SAFE_CORE_IMPORTS = [
     "core.utils.chemistry_utils",
 ]
 
-# The current repository snapshot contains `core.decoder` importing `core.mol_cache`,
-# which is not present. Keep coverage broad but skip this known missing optional link.
-KNOWN_IMPORT_ISSUES = {
-    "core.decoder": "missing dependency: core.mol_cache",
-}
-
 
 BENCHMARK_IMPORTS = [
     "benchmarks.Guacamol.evolve_vs_molscore_benchmark",
