@@ -1,6 +1,6 @@
 {
   "created_at_utc": "2026-08-24T12:59:42Z",
-  "input_root": "/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_merged_20260824_150715",
+  "input_root": "PORTABLE_OUTPUT_ROOT/guacamol_frequency_ablation_merged_20260824_150715",
   "output_dir": "reproducibility_backups/unified_guacamol_saturn_20260817/verification/guacamol_frequency_ablation_20260824_150715",
   "model": "spectralmol",
   "budget": 20000,

@@ -10,19 +10,19 @@
 
 set -euo pipefail
 
-# GuacaMol comparison on IBEX:
+# GuacaMol comparison for local or Slurm execution:
 #   - SpectralMol uses the Fourier-genotype local evolution path.
 #   - GraphGA uses MolScore_examples/GraphGA/molscore_GB_GA.py.
 #   - benchmark_compare_models.py writes one shared per-seed initial SMILES file,
 #     then both models consume that same file.
 #
 # Typical submission:
-#   sbatch --export=ALL,EXAMPLES_ROOT=/path/to/MolScore_examples sbatch_guacamol_graphga_vs_spectralmol_ibex.sh
+#   sbatch --export=ALL,EXAMPLES_ROOT=/path/to/MolScore_examples sbatch_guacamol_graphga_vs_spectralmol_slurm.sh
 #
 # Useful overrides:
 #   SEEDS=7,8,9 BUDGET=10000 GENERATIONS=50 POPULATION_SIZE=256 BATCH_SIZE=64
 #   SEED_SMILES_FILE=/path/to/chembl24_canon_train.smiles
-#   OUTPUT_DIR=/ibex/scratch/$USER/spectralMol/guacamol_graphga_vs_spectralmol
+#   OUTPUT_DIR=/path/to/results/guacamol_graphga_vs_spectralmol
 #   CONDA_ENV=molscore
 
 info() { echo "[info] $*"; }
@@ -69,8 +69,6 @@ load_conda_if_needed() {
   else
     local conda_sh=""
     for conda_sh in \
-      "/ibex/user/${USER:-}/miniforge/etc/profile.d/conda.sh" \
-      "/ibex/user/${USER:-}/miniconda3/etc/profile.d/conda.sh" \
       "/home/${USER:-}/miniforge/etc/profile.d/conda.sh" \
       "/home/${USER:-}/miniconda3/etc/profile.d/conda.sh" \
       "/home/${USER:-}/anaconda3/etc/profile.d/conda.sh" \
@@ -99,6 +97,7 @@ load_conda_if_needed() {
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
 USER_NAME="${USER:-$(id -un 2>/dev/null || printf user)}"
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 2>/dev/null || true)}"
 
 looks_like_spectralmol_root() {
   local candidate="$1"
@@ -158,47 +157,19 @@ if [[ -z "${REPO_ROOT}" || ! -f "${REPO_ROOT}/core/config.py" || ! -f "${REPO_RO
 fi
 
 if [[ -z "${SEED_SMILES_FILE:-}" ]]; then
-  SEED_SMILES_FILE="$(first_existing_file \
-    "${REPO_ROOT}/guacamol/guacamol_dataset/chembl24_canon_train.smiles" \
-    "${REPO_ROOT}/../guacamol/guacamol_dataset/chembl24_canon_train.smiles" \
-    "/home/${USER_NAME}/molevoDrugDiscovery_2/guacamol/guacamol_dataset/chembl24_canon_train.smiles" \
-    "/ibex/user/${USER_NAME}/molevoDrugDiscovery_2/guacamol/guacamol_dataset/chembl24_canon_train.smiles" \
-    || true)"
-fi
-
-if [[ -z "${SEED_SMILES_FILE:-}" ]]; then
-  for candidate in \
-    /ibex/scratch/"${USER_NAME}"/spectralMol/guacamol_graphga_vs_spectralmol/compare_*/shared_initial_population/seed_7.smi \
-    /ibex/user/"${USER_NAME}"/spectralMol/guacamol_graphga_vs_spectralmol/compare_*/shared_initial_population/seed_7.smi \
-    /home/"${USER_NAME}"/spectralMol/guacamol_graphga_vs_spectralmol/compare_*/shared_initial_population/seed_7.smi; do
-    if [[ -f "${candidate}" ]]; then
-      SEED_SMILES_FILE="${candidate}"
-      break
-    fi
-  done
+  SEED_SMILES_FILE="${REPO_ROOT}/../reproducibility/manuscript_2026/inputs/guacamol/shared_initial_population_seed_7.smi"
 fi
 
 if [[ -z "${EXAMPLES_ROOT:-}" ]]; then
   EXAMPLES_ROOT="$(first_existing_dir \
     "${REPO_ROOT}/MolScore_examples" \
     "${REPO_ROOT}/../MolScore_examples" \
-    "/home/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples" \
-    "/ibex/user/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples" \
-    "/home/${USER_NAME}/MolScore_examples" \
-    "/ibex/user/${USER_NAME}/MolScore_examples" \
+    "${REPO_ROOT}/../../MolScore_examples" \
     || true)"
 fi
 
 if [[ -z "${OUTPUT_DIR:-}" ]]; then
-  if [[ -n "${IBEX_SCRATCH:-}" ]]; then
-    OUTPUT_DIR="${IBEX_SCRATCH}/spectralMol/guacamol_graphga_vs_spectralmol"
-  elif [[ -d "/ibex/scratch/${USER_NAME}" ]]; then
-    OUTPUT_DIR="/ibex/scratch/${USER_NAME}/spectralMol/guacamol_graphga_vs_spectralmol"
-  elif [[ -d "/ibex/user/${USER_NAME}" ]]; then
-    OUTPUT_DIR="/ibex/user/${USER_NAME}/spectralMol/guacamol_graphga_vs_spectralmol"
-  else
-    OUTPUT_DIR="${REPO_ROOT}/outputs/guacamol_graphga_vs_spectralmol"
-  fi
+  OUTPUT_DIR="${REPO_ROOT}/../reproducibility_runs/guacamol_graphga_vs_spectralmol"
 fi
 
 BENCHMARK="${BENCHMARK:-GuacaMol}"
@@ -269,7 +240,6 @@ DRY_RUN="${DRY_RUN:-0}"
 if [[ -z "${SEED_SMILES_FILE}" || ! -f "${SEED_SMILES_FILE}" ]]; then
   err "seed SMILES file not found."
   err "Set SEED_SMILES_FILE=/path/to/chembl24_canon_train.smiles"
-  err "Fallback checked previous shared init files under /ibex/scratch, /ibex/user, and /home."
   exit 1
 fi
 

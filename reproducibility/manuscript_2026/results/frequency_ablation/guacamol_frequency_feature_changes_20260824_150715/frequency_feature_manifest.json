@@ -93,7 +93,7 @@
     "fr_urea"
   ],
   "generated_at": "2026-08-24T19:49:16+00:00",
-  "input_root": "/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_merged_20260824_150715",
+  "input_root": "PORTABLE_OUTPUT_ROOT/guacamol_frequency_ablation_merged_20260824_150715",
   "min_generation": 1,
   "n_rows": 41207,
   "n_run_exports": 480,

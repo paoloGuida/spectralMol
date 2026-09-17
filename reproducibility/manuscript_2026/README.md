@@ -48,27 +48,28 @@ The explicit parent-lineage outputs support a cautious interpretation:
 frequency restrictions bias parent-child molecular changes, but the mapping
 between a frequency band and one chemical operation is not universal.
 
-## Fresh runs on IBEX
+## Fresh runs
 
-Create the conda environment from `spectralMol/environment_exported.yml` or
-`spectralMol/environment.yml`. Install the external dependencies listed below,
-then run from the repository root:
+Create the conda environment from `spectralMol/environment.yml`. Install the
+external dependencies listed below, then run from the repository root. Local
+execution is the default and does not require a scheduler:
 
 ```bash
-bash run_reproducibility_profile_ibex.sh guacamol_mpo_v3 run
-bash run_reproducibility_profile_ibex.sh saturn_table8_v119 run
+bash run_reproducibility_profile.sh guacamol_mpo_v3 run
+bash run_reproducibility_profile.sh saturn_table8_v119 run
 ```
 
 Pinned settings are under
 `reproducibility_backups/unified_guacamol_saturn_20260817/settings`.
 
-For the ablation, decompress the included ChEMBL input and override the path:
+Run the frequency-mode ablation locally with:
 
 ```bash
-gzip -dk reproducibility/manuscript_2026/inputs/guacamol/chembl.filtered.smi.gz
-SEED_SMILES_FILE="$PWD/reproducibility/manuscript_2026/inputs/guacamol/chembl.filtered.smi" \
-  bash sbatch_guacamol_frequency_ablation_ibex.sh
+bash run_frequency_ablation.sh
 ```
+
+The wrapper decompresses the bundled ChEMBL input when needed. Set
+`EXECUTION_BACKEND=slurm` to submit the 480-condition array to Slurm.
 
 ## External dependencies
 
@@ -108,11 +109,7 @@ bash reproducibility/manuscript_2026/validate_release.sh
 ```
 
 This checks shell and Python syntax, required files, theta-only settings, and
-SHA256 hashes. Full numerical reproduction requires the HPC/GPU dependencies.
-
-Original completed roots:
-
-- GuacaMol: `/ibex/scratch/colleoe/spectralMol/merged_fresh_repro_20260818_083101/guacamol_mpo_v3`
-- SATURN: `/ibex/scratch/colleoe/spectralMol/merged_fresh_repro_20260818_083101/saturn_table8_v119/20260818_083655/table8_v118_strict_mode_cap_v119`
-
-Those private paths are provenance only; compact manuscript data is included.
+SHA256 hashes. Full SATURN numerical reproduction requires the documented GPU and docking
+dependencies. GuacaMol can run on a workstation; the complete benchmark is
+compute-intensive. Compact manuscript data is included and can be validated
+without external infrastructure.

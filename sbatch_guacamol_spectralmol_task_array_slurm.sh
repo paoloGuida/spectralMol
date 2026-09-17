@@ -745,7 +745,7 @@ fi
 export SEED_POOL_SIZE="${SEED_POOL_SIZE:-256}"
 export MOLSCORE_PARALLEL_JOBS="${MOLSCORE_PARALLEL_JOBS:-1}"
 
-OUTPUT_BASE_DIR="${OUTPUT_BASE_DIR:-/ibex/scratch/${USER_NAME}/spectralMol/guacamol_theta_task_array}"
+OUTPUT_BASE_DIR="${OUTPUT_BASE_DIR:-${SCRIPT_DIR}/reproducibility_runs/guacamol_theta_task_array}"
 SAFE_TASK_NAME="${TASK_NAME//[^A-Za-z0-9_]/_}"
 export OUTPUT_DIR="${OUTPUT_DIR:-${OUTPUT_BASE_DIR}/task_${TASK_INDEX}_${SAFE_TASK_NAME}}"
 mkdir -p "${OUTPUT_DIR}"
@@ -758,10 +758,10 @@ echo "[array] submit_dir=${SLURM_SUBMIT_DIR:-}"
 echo "[array] launcher_dir=${SCRIPT_DIR}"
 echo "[array] output_dir=${OUTPUT_DIR}"
 
-if [[ ! -f "${SCRIPT_DIR}/sbatch_guacamol_graphga_vs_spectralmol_ibex.sh" ]]; then
-  echo "[error] base launcher not found: ${SCRIPT_DIR}/sbatch_guacamol_graphga_vs_spectralmol_ibex.sh" >&2
-  echo "[error] submit from /home/${USER_NAME}/molevoDrugDiscovery_2/SpectralMol or set SLURM_SUBMIT_DIR accordingly." >&2
+if [[ ! -f "${SCRIPT_DIR}/sbatch_guacamol_graphga_vs_spectralmol_slurm.sh" ]]; then
+  echo "[error] base launcher not found: ${SCRIPT_DIR}/sbatch_guacamol_graphga_vs_spectralmol_slurm.sh" >&2
+  echo "[error] run from the repository root or set SLURM_SUBMIT_DIR accordingly." >&2
   exit 1
 fi
 
-exec bash "${SCRIPT_DIR}/sbatch_guacamol_graphga_vs_spectralmol_ibex.sh"
+exec bash "${SCRIPT_DIR}/sbatch_guacamol_graphga_vs_spectralmol_slurm.sh"

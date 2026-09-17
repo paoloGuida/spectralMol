@@ -1,4 +1,4 @@
-name: /ibex/user/barradd/molevoDrugDiscovery/env
+name: spectralmol
 channels:
   - nvidia
   - conda-forge

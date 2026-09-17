@@ -1,6 +1,6 @@
 # SATURN Theta NSGA-II Analysis
 
-Input roots: /ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119
+Input roots: PORTABLE_USER_ROOT/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119
 Strategy: `theta_nsga2_multiobjective`
 Expected seeds: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 
