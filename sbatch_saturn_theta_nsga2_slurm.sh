@@ -41,18 +41,18 @@ fi
 SEED="${SEED_ARRAY[${ARRAY_ID}]}"
 SEED="${SEED//[[:space:]]/}"
 
-set_default PYTHON_BIN "/ibex/user/${USER_NAME}/conda-environments/molscore/bin/python"
+set_default PYTHON_BIN "${PYTHON:-python3}"
 set_default REPO_ROOT "${SCRIPT_DIR}/spectralMol"
-set_default OUTPUT_ROOT "/ibex/scratch/${USER_NAME}/spectralMol/saturn_theta_nsga2"
+set_default OUTPUT_ROOT "${SCRIPT_DIR}/reproducibility_runs/saturn_theta_nsga2"
 set_default RUN_ID_PREFIX "saturn_theta_nsga2"
-set_default SATURN_REPO_ROOT "/home/${USER_NAME}/molevoDrugDiscovery_2/Saturn/saturn_repo2"
-set_default SATURN_ORACLE_TEMPLATE "/home/${USER_NAME}/molevoDrugDiscovery_2/Saturn/local_evolution/table2_r_sa_qed_oracle_template.json"
+set_default SATURN_REPO_ROOT "${SCRIPT_DIR}/../saturn"
+set_default SATURN_ORACLE_TEMPLATE "${SCRIPT_DIR}/spectralMol/benchmarks/Saturn/table2_r_sa_qed_oracle_template.json"
 set_default SATURN_ORACLE_CONFIG_KEY "oracle"
-set_default ASSETS_ROOT "/home/${USER_NAME}/molevoDrugDiscovery_2/Saturn/saturn_repo_clean/experimental_reproduction/synthesizability"
+set_default ASSETS_ROOT "${SCRIPT_DIR}/reproducibility/manuscript_2026/inputs/saturn/docking"
 set_default QUICKVINA_BINARY "${SATURN_REPO_ROOT}/experimental_reproduction/synthesizability/QuickVina2-GPU-2.1/QuickVina2-GPU-2-1"
 set_default RECEPTOR_FILE "${ASSETS_ROOT}/7uvu-2-monomers-pdbfixer.pdbqt"
 set_default REFERENCE_LIGAND_FILE "${ASSETS_ROOT}/7uvu-reference.pdb"
-set_default PER_SEED_SEED_SMILES_DIR "/home/${USER_NAME}/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1"
+set_default PER_SEED_SEED_SMILES_DIR "${SCRIPT_DIR}/reproducibility/manuscript_2026/inputs/saturn/seed_sets"
 set_default USE_PER_SEED_SEED_SMILES "1"
 set_default SEED_SMILES_FILE ""
 set_default SEED_POOL_SIZE "256"
@@ -72,10 +72,10 @@ set_default IMMIGRANT_FRACTION "0.02"
 set_default PARENT_POOL_FRACTION "0.50"
 set_default STAGNATION_PATIENCE "12"
 set_default STAGNATION_MUTATION_BOOST "2"
-set_default SATURN_MODULES "cuda/11.8"
-set_default MOLSCORE_SATURN_OBABEL_BINARY "/ibex/user/${USER_NAME}/conda-environments/openbabel-cli/bin/obabel"
-set_default MOLSCORE_SATURN_OPENCL_LIB_DIR "/lib64"
-set_default MOLSCORE_SATURN_OPENCL_PRELOAD "1"
+set_default SATURN_MODULES ""
+set_default MOLSCORE_SATURN_OBABEL_BINARY "$(command -v obabel 2>/dev/null || true)"
+set_default MOLSCORE_SATURN_OPENCL_LIB_DIR ""
+set_default MOLSCORE_SATURN_OPENCL_PRELOAD "0"
 set_default SATURN_THETA_USE_RAW_NSGA_OBJECTIVES "1"
 set_default SATURN_THETA_NSGA_DOCKING_OBJECTIVE_CAP "0.0"
 set_default SATURN_THETA_DOCKING_FOCUS_FRACTION "0.95"
@@ -200,8 +200,8 @@ set_default MOLSCORE_SPECTRAL_TASK_TARGET_WINDOW_MACRO_MAX_N "18"
 set_default MOLSCORE_SPECTRAL_TASK_TARGET_MACRO_MAX "512"
 set_default MOLSCORE_SPECTRAL_TASK_TARGET_MACRO_MAX_N "20"
 
-# Keep Saturn docking on the working NVIDIA OpenCL stack identified on Ibex.
-export OCL_ICD_VENDORS="${OCL_ICD_VENDORS:-/etc/OpenCL/vendors/nvidia.icd}"
+# Configure OpenCL explicitly when the system loader cannot discover it.
+export OCL_ICD_VENDORS="${OCL_ICD_VENDORS:-}"
 export MOLSCORE_SATURN_OPENCL_LIB_DIR
 export MOLSCORE_SATURN_OPENCL_PRELOAD
 export MOLSCORE_SATURN_OBABEL_BINARY
@@ -340,6 +340,35 @@ if [[ "${USE_PER_SEED_SEED_SMILES}" == "0" || "${PER_SEED_SEED_SMILES_DIR}" == "
   PER_SEED_SEED_SMILES_DIR=""
 fi
 
+if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1 && [[ ! -x "${PYTHON_BIN}" ]]; then
+  echo "[saturn-theta-nsga2] Python executable not found: ${PYTHON_BIN}" >&2
+  exit 2
+fi
+if [[ ! -d "${SATURN_REPO_ROOT}" ]]; then
+  echo "[saturn-theta-nsga2] SATURN_REPO_ROOT not found: ${SATURN_REPO_ROOT}" >&2
+  exit 2
+fi
+if [[ ! -x "${QUICKVINA_BINARY}" ]]; then
+  echo "[saturn-theta-nsga2] QuickVina2-GPU executable not found: ${QUICKVINA_BINARY}" >&2
+  exit 2
+fi
+for required_file in "${SATURN_ORACLE_TEMPLATE}" "${RECEPTOR_FILE}" "${REFERENCE_LIGAND_FILE}"; do
+  if [[ ! -f "${required_file}" ]]; then
+    echo "[saturn-theta-nsga2] required file not found: ${required_file}" >&2
+    exit 2
+  fi
+done
+if [[ -n "${MOLSCORE_SATURN_OBABEL_BINARY}" && ! -x "${MOLSCORE_SATURN_OBABEL_BINARY}" ]]; then
+  resolved_obabel="$(command -v "${MOLSCORE_SATURN_OBABEL_BINARY}" 2>/dev/null || true)"
+  if [[ -n "${resolved_obabel}" ]]; then
+    export MOLSCORE_SATURN_OBABEL_BINARY="${resolved_obabel}"
+  fi
+fi
+if [[ -z "${MOLSCORE_SATURN_OBABEL_BINARY}" || ! -x "${MOLSCORE_SATURN_OBABEL_BINARY}" ]]; then
+  echo "[saturn-theta-nsga2] OpenBabel executable not found; set MOLSCORE_SATURN_OBABEL_BINARY." >&2
+  exit 2
+fi
+
 if [[ -n "${SATURN_MODULES}" ]]; then
   if [[ -f /etc/profile.d/modules.sh ]]; then
     # shellcheck source=/dev/null
@@ -354,7 +383,7 @@ fi
 
 if [[ -n "${MOLSCORE_SATURN_OPENCL_LIB_DIR}" ]]; then
   export LD_LIBRARY_PATH="${MOLSCORE_SATURN_OPENCL_LIB_DIR}:${LD_LIBRARY_PATH:-}"
-  if [[ -f "${MOLSCORE_SATURN_OPENCL_LIB_DIR}/libOpenCL.so.1" ]]; then
+  if [[ "${MOLSCORE_SATURN_OPENCL_PRELOAD}" == "1" && -f "${MOLSCORE_SATURN_OPENCL_LIB_DIR}/libOpenCL.so.1" ]]; then
     export LD_PRELOAD="${MOLSCORE_SATURN_OPENCL_LIB_DIR}/libOpenCL.so.1${LD_PRELOAD:+:${LD_PRELOAD}}"
   fi
 fi

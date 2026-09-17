@@ -22,10 +22,13 @@ for path in "${required[@]}"; do
 done
 
 bash -n \
-  run_reproducibility_profile_ibex.sh \
-  sbatch_guacamol_spectralmol_graphga_10seed_stats_ibex.sh \
-  sbatch_guacamol_frequency_ablation_ibex.sh \
-  sbatch_saturn_theta_nsga2_ibex.sh \
+  run_reproducibility_profile.sh \
+  run_custom_spectralmol.sh \
+  run_frequency_ablation.sh \
+  auto_saturn_theta_tune.sh \
+  sbatch_guacamol_spectralmol_graphga_10seed_stats_slurm.sh \
+  sbatch_guacamol_frequency_ablation_slurm.sh \
+  sbatch_saturn_theta_nsga2_slurm.sh \
   reproducibility_backups/unified_guacamol_saturn_20260817/commands/*.sh
 
 python_bin="${SPECTRALMOL_PYTHON:-python3}"
@@ -42,7 +45,23 @@ grep -q '^export MOLSCORE_SPECTRAL_PHENOTYPE_PROPOSAL_FRACTION=0$' \
   reproducibility_backups/unified_guacamol_saturn_20260817/settings/guacamol_mpo_v3.env
 grep -q '^export MOLSCORE_SPECTRAL_BRICS_CROSSOVER_FRACTION=0$' \
   reproducibility_backups/unified_guacamol_saturn_20260817/settings/guacamol_mpo_v3.env
-grep -q -- '--nsga2-genotype theta' sbatch_saturn_theta_nsga2_ibex.sh
+grep -q -- '--nsga2-genotype theta' sbatch_saturn_theta_nsga2_slurm.sh
+
+site_word="i""bex"
+if find . -path ./.git -prune -o -iname "*${site_word}*" -print | grep -q .; then
+  echo "site-specific filename found" >&2
+  exit 1
+fi
+if git grep -Iiw "${site_word}" -- . >/dev/null 2>&1; then
+  echo "site-specific text reference found" >&2
+  exit 1
+fi
+while IFS= read -r archive; do
+  if gzip -cd "${archive}" | grep -iw "${site_word}" >/dev/null 2>&1; then
+    echo "site-specific compressed reference found: ${archive}" >&2
+    exit 1
+  fi
+done < <(find reproducibility -name '*.gz' -type f)
 
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum -c reproducibility/manuscript_2026/provenance/SHA256SUMS

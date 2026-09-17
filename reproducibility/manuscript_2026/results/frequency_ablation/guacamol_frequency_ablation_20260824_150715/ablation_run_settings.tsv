@@ -7,7 +7,7 @@ generations	0
 population_size	256
 batch_size	256
 seed_pool_size	2000
-seed_smiles_file	/home/colleoe/ReinventCommunity/notebooks/data/chembl.filtered.smi
+seed_smiles_file	PORTABLE_HOME/ReinventCommunity/notebooks/data/chembl.filtered.smi
 models	spectralmol
-source_script	/home/colleoe/molevoDrugDiscovery_2/SpectralMol/sbatch_guacamol_frequency_ablation_ibex.sh
-delegated_script	/home/colleoe/molevoDrugDiscovery_2/SpectralMol/sbatch_guacamol_spectralmol_task_array_ibex.sh
+source_script	PORTABLE_HOME/molevoDrugDiscovery_2/SpectralMol/sbatch_guacamol_frequency_ablation_slurm.sh
+delegated_script	PORTABLE_HOME/molevoDrugDiscovery_2/SpectralMol/sbatch_guacamol_spectralmol_task_array_slurm.sh

@@ -1,4 +1,4 @@
-Captured on IBEX for the manuscript release, 2026-09-17
+Captured on COMPUTE_CLUSTER for the manuscript release, 2026-09-17
 
 Python 3.11.14 (conda-forge, GCC 14.3.0)
 numpy 2.4.2

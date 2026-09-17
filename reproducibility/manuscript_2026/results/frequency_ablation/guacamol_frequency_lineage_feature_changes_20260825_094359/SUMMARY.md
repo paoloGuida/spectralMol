@@ -1,7 +1,7 @@
 # GuacaMol Frequency Parent-Lineage Feature-Change Analysis
 
 Generated: 2026-09-03T06:13:08+00:00
-Input root: `/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_lineage_20260825_094359`
+Input root: `PORTABLE_OUTPUT_ROOT/guacamol_frequency_ablation_lineage_20260825_094359`
 Source: `top-lineage`
 Molecule set: top 100 unique generated molecules per task/seed run with recorded parent smiles.
 
