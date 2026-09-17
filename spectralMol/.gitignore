@@ -160,6 +160,18 @@ dcgm/
 **.smi
 **.rst
 
+# Publication reproducibility inputs and compact result tables are intentionally
+# versioned. Keep these exceptions after the broad generated-file rules above.
+!benchmarks/Guacamol/model_specs.json
+!benchmarks/Guacamol/saturn_oracle_config.example.json
+!benchmarks/Saturn/table2_r_sa_qed_oracle_template.json
+!tests/test_oracle_qed_sa.json
+!../reproducibility/manuscript_2026/**/*.json
+!../reproducibility/manuscript_2026/**/*.tsv
+!../reproducibility/manuscript_2026/**/*.tsv.gz
+!../reproducibility/manuscript_2026/**/*.smi
+!../reproducibility/manuscript_2026/**/*.smi.gz
+
 overleaf/
 overleaf.zip
 Draft_*.zip

@@ -36,6 +36,17 @@ CONFIG_FILE=examples/custom_guacamol.env SUBMIT=1 bash run_custom_spectralmol_ib
 
 ## Reproduce The Final Benchmarks
 
+The publication branch is self-contained for the SpectralMol code, benchmark
+configuration, initial populations, docking structures, compact result tables,
+and manuscript figure-generation scripts. Start with:
+
+```text
+reproducibility/manuscript_2026/README.md
+```
+
+QuickVina2-GPU, OpenBabel, the SATURN checkout, and MolScore GraphGA examples
+remain external dependencies; their exact revisions and binary checksums are
+recorded in that guide.
 The final GuacaMol and SATURN settings are pinned in:
 
 ```text
@@ -102,6 +113,8 @@ environment used for the final Table 8 reproduction.
   reproducibility profiles.
 - `examples/custom_guacamol.env`: editable GuacaMol custom-run settings.
 - `examples/custom_saturn.env`: editable SATURN custom-run settings.
+- `reproducibility/manuscript_2026/`: exact inputs, compact outputs, provenance,
+  checksums, and scripts used to update the manuscript.
 - `reproducibility_backups/unified_guacamol_saturn_20260817/`: final benchmark
   settings, commands, verification data, and result summaries.
 

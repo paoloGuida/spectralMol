@@ -44,7 +44,9 @@ Both profile sets preserve theta-only optimization:
   SATURN final output root.
 - `commands/verify_existing_results_ibex.sh`: verify both final existing result
   roots without submitting new jobs.
-- `verification/`: generated analysis outputs from verification commands.
+- `verification/`: historical v119 verification outputs retained for provenance.
+  The final fresh manuscript rerun and publication tables are under
+  `reproducibility/manuscript_2026/results/`.
 
 ## User-Friendly Entry Points
 
@@ -123,16 +125,16 @@ bash reproducibility_backups/unified_guacamol_saturn_20260817/commands/analyze_s
 The final GuacaMol 10-seed comparison should reproduce the stored result:
 
 ```text
-SpectralMol  n=10 mean=15.115324 std=0.271635
-GraphGA      n=10 mean=14.640126 std=0.221501
-Delta        n=10 mean=+0.475198 std=0.397694
-SpectralMol wins: 9 / 10 seeds
+SpectralMol  n=10 mean=15.230485 std=0.176493
+GraphGA      n=10 mean=14.574242 std=0.256197
+Delta        n=10 mean=+0.656244 std=0.295991
+SpectralMol wins: 10 / 10 seeds
 ```
 
 Existing final output root:
 
 ```text
-/ibex/scratch/colleoe/spectralMol/guacamol_10seed_spectralmol_graphga_mpo_v3_stats
+/ibex/scratch/colleoe/spectralMol/merged_fresh_repro_20260818_083101/guacamol_mpo_v3
 ```
 
 ## Expected SATURN Result
@@ -141,13 +143,13 @@ The final SATURN Table 8 v119 result should reproduce:
 
 | Threshold | Successful replicates | Modes | Yield | QED | SA | MolWt |
 |---:|---:|---:|---:|---:|---:|---:|
-| Docking < -9 kcal/mol | 10/10 | 103.7 +/- 17.8 | 324.9 +/- 31.4 | 0.854 +/- 0.009 | 2.674 +/- 0.041 | 314.8 +/- 6.4 |
-| Docking < -10 kcal/mol | 10/10 | 7.9 +/- 2.1 | 13.0 +/- 4.7 | 0.851 +/- 0.022 | 2.683 +/- 0.101 | 311.3 +/- 5.6 |
+| Docking < -9 kcal/mol | 10/10 | 94.9 +/- 11.5 | 316.2 +/- 38.1 | 0.85 +/- 0.01 | 2.66 +/- 0.04 | 312.4 +/- 5.2 |
+| Docking < -10 kcal/mol | 10/10 | 8.1 +/- 3.0 | 12.9 +/- 6.9 | 0.84 +/- 0.02 | 2.62 +/- 0.12 | 309.6 +/- 7.1 |
 
 Existing final raw output root:
 
 ```text
-/ibex/scratch/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119
+/ibex/scratch/colleoe/spectralMol/merged_fresh_repro_20260818_083101/saturn_table8_v119/20260818_083655/table8_v118_strict_mode_cap_v119
 ```
 
 ## Next Verification Step

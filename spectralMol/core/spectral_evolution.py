@@ -46,6 +46,18 @@ class SpectralIndividual:
     score: float = float("nan")
     decode_reason: str = "OK"
     macro_count: int = 0
+    uid: int = -1
+    birth_generation: int = 0
+    lineage_operator: str = ""
+    parent_uid: int = -1
+    parent_smiles: str = ""
+    parent_score: float = float("nan")
+    parent2_uid: int = -1
+    parent2_smiles: str = ""
+    parent2_score: float = float("nan")
+    parent3_uid: int = -1
+    parent3_smiles: str = ""
+    parent3_score: float = float("nan")
 
 
 @dataclass(frozen=True)
@@ -936,8 +948,32 @@ class SpectralGenerator:
         param_noise_scale: float = 1.0,
         row_reset_scale: float = 1.0,
     ) -> np.ndarray:
+        theta, _left, _right, _operator = self.propose_child_with_lineage(
+            parents,
+            gen=gen,
+            generations=generations,
+            crossover_probability=crossover_probability,
+            mutation_depth=mutation_depth,
+            sigma_scale=sigma_scale,
+            param_noise_scale=param_noise_scale,
+            row_reset_scale=row_reset_scale,
+        )
+        return theta
+
+    def propose_child_with_lineage(
+        self,
+        parents: Sequence[SpectralIndividual],
+        gen: int,
+        generations: int,
+        *,
+        crossover_probability: float = 0.35,
+        mutation_depth: int = 1,
+        sigma_scale: float = 1.0,
+        param_noise_scale: float = 1.0,
+        row_reset_scale: float = 1.0,
+    ) -> tuple[np.ndarray, SpectralIndividual | None, SpectralIndividual | None, str]:
         if not parents:
-            return self.mutate_repeated(
+            theta = self.mutate_repeated(
                 self.random_theta(),
                 gen=gen,
                 generations=generations,
@@ -946,12 +982,16 @@ class SpectralGenerator:
                 param_noise_scale=param_noise_scale,
                 row_reset_scale=row_reset_scale,
             )
+            return theta, None, None, "theta_random_immigrant"
         left = self.py_rng.choice(list(parents))
         theta = left.theta
+        right: SpectralIndividual | None = None
+        operator = "theta_row_mutation"
         if len(parents) > 1 and self.py_rng.random() < float(crossover_probability):
             right = self.py_rng.choice(list(parents))
             theta = self.crossover_theta(left.theta, right.theta)
-        return self.mutate_repeated(
+            operator = "theta_row_crossover_mutation"
+        theta = self.mutate_repeated(
             theta,
             gen=gen,
             generations=generations,
@@ -960,3 +1000,4 @@ class SpectralGenerator:
             param_noise_scale=param_noise_scale,
             row_reset_scale=row_reset_scale,
         )
+        return theta, left, right, operator

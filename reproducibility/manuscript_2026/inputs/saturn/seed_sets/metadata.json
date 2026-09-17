@@ -1,0 +1,38 @@
+{
+  "created_utc": "2026-04-02T13:44:10Z",
+  "ranked_csv": "/home/colleoe/molevoDrugDiscovery_2/Saturn/data/zinc250k/zinc250k_ranked_qed_sa.csv",
+  "output_dir": "/home/colleoe/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "population_size": 256,
+  "required_total": 2560,
+  "qed_min": 0.8,
+  "sa_max": 2.1,
+  "inclusive_thresholds": false,
+  "shuffle_seed": 20260402,
+  "selection_mode": "quality_diverse_scaffold",
+  "qed_weight": 0.35,
+  "sa_weight": 0.65,
+  "max_per_scaffold_per_seed": 6,
+  "eligible_count": 8710,
+  "selected_count": 2560,
+  "unique_selected_smiles": 2560,
+  "overlap_count": 0,
+  "selected_qed_mean": 0.9029887600664054,
+  "selected_sa_mean": 1.8368358738320307,
+  "files": {
+    "master_smiles": "/home/colleoe/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1/selected_all.smi",
+    "manifest_csv": "/home/colleoe/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1/selected_all.csv",
+    "per_seed_pattern": "/home/colleoe/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1/seed_<seed>.smi"
+  }
+}
