@@ -1,0 +1,33 @@
+[run]
+workflow = "guacamol"
+output_dir = "results/guacamol_manuscript"
+device = "auto"
+
+[guacamol]
+benchmark = "GuacaMol"
+seeds = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+tasks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+models = ["spectralmol", "graphga"]
+generations = 500
+population_size = 256
+batch_size = 256
+budget = 128256
+seed_pool_size = 256
+seed_smiles_file = "reproducibility/manuscript_2026/inputs/guacamol/shared_initial_population_seed_7.smi"
+frequency_mode = "full-spectrum"
+spectral_l = 32
+spectral_k = 16
+spectral_d = 32
+spectral_decode_attempts = 4
+graphga_n_jobs = 1
+graphga_patience = 500
+use_task_profiles = true
+
+[external]
+# Required only when "graphga" is listed above.
+molscore_examples = "../MolScore_examples"
+
+[environment]
+MOLSCORE_SPECTRAL_PHENOTYPE_PROPOSAL_FRACTION = "0"
+MOLSCORE_SPECTRAL_BRICS_CROSSOVER_FRACTION = "0"
+MOLSCORE_SPECTRAL_BRICS_FRAGMENT_REPLACE_FRACTION = "0"

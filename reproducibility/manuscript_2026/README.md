@@ -1,41 +1,57 @@
-# SpectralMol manuscript reproducibility package
+# Manuscript Reproducibility Package
 
-This directory ties the publication code to the exact inputs, pinned profiles,
-compact outputs, and analysis scripts used for the August-September 2026
-GuacaMol, SATURN, and frequency-mode ablation results.
+This directory contains the exact compact inputs, reference outputs,
+provenance, and analysis scripts used for the reported GuacaMol, SATURN, and
+frequency-mode experiments.
 
-## Invariants
+## Scientific Invariants
 
 - The evolved genotype is theta.
 - GuacaMol phenotype proposals and BRICS genotype operations are disabled.
-- SATURN uses `--nsga2-genotype theta` and jointly evaluates docking, QED, and
+- SATURN uses theta-only NSGA-II and jointly evaluates docking, QED, and
   synthetic accessibility.
-- Parent-lineage fields are observability metadata; they do not add an evolved
-  variable or alter theta proposal behavior.
+- Parent-lineage fields are observability metadata, not evolved variables.
 
-## Reported results
+## Reproduction Commands
+
+Run from the repository root:
+
+```bash
+python run.py --config configs/guacamol_manuscript.toml
+python run.py --config configs/saturn_table8.toml
+python run.py --config configs/frequency_ablation.toml
+```
+
+Print bundled headline tables or validate every packaged checksum:
+
+```bash
+python run.py --config configs/results.toml
+python run.py --config configs/verify.toml
+```
+
+The complete GuacaMol and SATURN runs are computationally expensive. External
+docking and comparison dependencies are documented in the repository README.
+
+## Reported Results
 
 ### GuacaMol, 10 matched seeds (7-16)
 
 | Method | Aggregate mean +/- SD | Seed wins |
 |---|---:|---:|
-| SpectralMol | 15.230485 +/- 0.176493 | 10/10 |
+| SpectralMol | 15.230486 +/- 0.176493 | 10/10 |
 | GraphGA | 14.574242 +/- 0.256197 | 0/10 |
 | Paired difference | +0.656244 +/- 0.295991 | 10/10 positive |
 
-The paired sign-test value is `p=9.8e-4`.
+Paired sign test: `p=9.8e-4`.
 
-### SATURN Table 8, 1000 oracle calls, 10 seeds
+### SATURN Table 8, 1,000 oracle calls, 10 seeds
 
-| Docking threshold | Successful replicates | Modes | Yield | QED | SA | MolWt |
+| Docking threshold | Replicates | Modes | Yield | QED | SA | MolWt |
 |---|---:|---:|---:|---:|---:|---:|
 | < -9 kcal/mol | 10/10 | 94.9 +/- 11.5 | 316.2 +/- 38.1 | 0.85 +/- 0.01 | 2.66 +/- 0.04 | 312.4 +/- 5.2 |
 | < -10 kcal/mol | 10/10 | 8.1 +/- 3.0 | 12.9 +/- 6.9 | 0.84 +/- 0.02 | 2.62 +/- 0.12 | 309.6 +/- 7.1 |
 
-### Frequency-mode ablation
-
-This separate mechanistic study uses 20 tasks, 6 seeds, and 20,000 evaluations
-per task. It is not the 10-seed GraphGA comparison.
+### Frequency-Mode Ablation
 
 | Condition | Mean best score | Delta vs full | Speedup |
 |---|---:|---:|---:|
@@ -44,72 +60,16 @@ per task. It is not the 10-seed GraphGA comparison.
 | full-spectrum | 0.711221 | 0 | 1.000x |
 | high-only | 0.664649 | -0.046572 | 1.154x |
 
-The explicit parent-lineage outputs support a cautious interpretation:
-frequency restrictions bias parent-child molecular changes, but the mapping
-between a frequency band and one chemical operation is not universal.
+The parent-lineage outputs support a cautious interpretation: frequency
+restrictions bias parent-child molecular changes, but no frequency band maps
+universally to one chemical operation.
 
-## Fresh runs
+## Contents
 
-Create the conda environment from `spectralMol/environment.yml`. Install the
-external dependencies listed below, then run from the repository root. Local
-execution is the default and does not require a scheduler:
-
-```bash
-bash run_reproducibility_profile.sh guacamol_mpo_v3 run
-bash run_reproducibility_profile.sh saturn_table8_v119 run
-```
-
-Pinned settings are under
-`reproducibility_backups/unified_guacamol_saturn_20260817/settings`.
-
-Run the frequency-mode ablation locally with:
-
-```bash
-bash run_frequency_ablation.sh
-```
-
-The wrapper decompresses the bundled ChEMBL input when needed. Set
-`EXECUTION_BACKEND=slurm` to submit the 480-condition array to Slurm.
-
-## External dependencies
-
-- SATURN: `https://github.com/schwallergroup/saturn.git`, commit
-  `3aea130158c488050426a91716b8c6ff34f05473`.
-- MolScore examples: `https://github.com/MorganCThomas/MolScore_examples.git`,
-  commit `92bb08abb1584cd04f6ee21d894d17de9be56d7b`.
-- QuickVina2-GPU SHA256:
-  `d1d0b0f42025ab9c6903c88dbbdfabf6337f91da48790d2c2416ea24745b0411`.
-- OpenBabel 3.1.0 executable SHA256:
-  `763574be7ac40f5ece8ca4b186aaf70246915614447eca518b3be87b901d724e`.
-- NVIDIA OpenCL runtime; verified runs used CUDA 11.8 and
-  `/lib64/libOpenCL.so.1`.
-
-The repository includes the SATURN seed sets, receptor, and reference ligand.
-Set `SATURN_REPO_ROOT`, `QUICKVINA_BINARY`, or
-`MOLSCORE_SATURN_OBABEL_BINARY` when installed elsewhere.
-
-## Included data
-
-- `inputs/guacamol`: exact shared GuacaMol population and compressed ChEMBL
-  ablation source.
-- `inputs/saturn`: ten initial populations plus docking structures.
-- `results/guacamol`: aggregate, per-seed, per-task, trajectory, and top-200
-  tables.
-- `results/saturn`: Table 8, molecule-level, Pareto, crowding, and Figure 10/11
-  source tables.
-- `results/frequency_ablation`: score, runtime, feature-change, and explicit
-  parent-lineage analyses; large row tables are gzip-compressed.
-- `scripts`: manuscript table and Figure 3-11 generators.
-- `provenance`: jobs, versions, and checksums.
-
-## Validation
-
-```bash
-bash reproducibility/manuscript_2026/validate_release.sh
-```
-
-This checks shell and Python syntax, required files, theta-only settings, and
-SHA256 hashes. Full SATURN numerical reproduction requires the documented GPU and docking
-dependencies. GuacaMol can run on a workstation; the complete benchmark is
-compute-intensive. Compact manuscript data is included and can be validated
-without external infrastructure.
+- `inputs/guacamol`: shared GuacaMol population and compressed ablation source.
+- `inputs/saturn`: ten initial populations and docking structures.
+- `results/guacamol`: aggregate, per-seed, per-task, trajectory, and top-200 tables.
+- `results/saturn`: Table 8, molecule, Pareto, crowding, and figure source tables.
+- `results/frequency_ablation`: score, runtime, feature, and lineage analyses.
+- `scripts`: manuscript table and figure generators.
+- `provenance`: package versions, historical run records, and checksums.

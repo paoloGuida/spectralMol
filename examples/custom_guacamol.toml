@@ -1,0 +1,21 @@
+[run]
+workflow = "guacamol"
+output_dir = "results/custom_guacamol"
+device = "auto"
+
+[guacamol]
+benchmark = "GuacaMol"
+seeds = [7]
+tasks = [10]
+models = ["spectralmol"]
+generations = 10
+population_size = 64
+batch_size = 64
+budget = 10000
+seed_pool_size = 256
+seed_smiles_file = "reproducibility/manuscript_2026/inputs/guacamol/shared_initial_population_seed_7.smi"
+frequency_mode = "full-spectrum"
+use_task_profiles = true
+
+[external]
+molscore_examples = ""

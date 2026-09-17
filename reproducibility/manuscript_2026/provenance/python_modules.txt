@@ -1,4 +1,4 @@
-python_executable=PORTABLE_USER_ROOT/conda-environments/molscore/bin/python
+python_executable=<active-environment>/bin/python
 python_version=3.11.14 | packaged by conda-forge | (main, Jan 26 2026, 23:48:32) [GCC 14.3.0]
 rdkit=2025.09.5
 numpy=2.4.2

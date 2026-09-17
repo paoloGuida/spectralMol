@@ -1,7 +1,7 @@
 {
   "created_utc": "2026-04-02T13:44:10Z",
-  "ranked_csv": "PORTABLE_HOME/molevoDrugDiscovery_2/Saturn/data/zinc250k/zinc250k_ranked_qed_sa.csv",
-  "output_dir": "PORTABLE_HOME/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1",
+  "ranked_csv": "<external-zinc250k-ranked-qed-sa.csv>",
+  "output_dir": "reproducibility/manuscript_2026/inputs/saturn/seed_sets",
   "seeds": [
     0,
     1,
@@ -31,8 +31,8 @@
   "selected_qed_mean": 0.9029887600664054,
   "selected_sa_mean": 1.8368358738320307,
   "files": {
-    "master_smiles": "PORTABLE_HOME/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1/selected_all.smi",
-    "manifest_csv": "PORTABLE_HOME/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1/selected_all.csv",
-    "per_seed_pattern": "PORTABLE_HOME/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1/seed_<seed>.smi"
+    "master_smiles": "<not redistributed; per-seed files are bundled>",
+    "manifest_csv": "<not redistributed; selection metadata is recorded here>",
+    "per_seed_pattern": "reproducibility/manuscript_2026/inputs/saturn/seed_sets/seed_<seed>.smi"
   }
 }

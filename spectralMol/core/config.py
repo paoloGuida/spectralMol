@@ -6,7 +6,7 @@ Central configuration for MolScore runs.
 
 Usage model:
 - CLI arguments override these defaults.
-- `run_molscore_case.sh` can also override via environment variables.
+- `run.py` and custom TOML files can also override settings via environment variables.
 - If neither is provided, these constants are used.
 """
 

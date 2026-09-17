@@ -6,8 +6,9 @@ https://anonymous.4open.science/r/GEAM-45EF/utils_sac/utils.py
 from typing import Tuple
 import os
 import sys
-from shutil import rmtree
+from shutil import rmtree, which
 import subprocess
+import tempfile
 from multiprocessing import Manager
 from multiprocessing import Process
 from multiprocessing import Queue
@@ -20,7 +21,7 @@ from openbabel import pybel
 
 
 class DockingVina(object):
-    def __init__(self, target):
+    def __init__(self, target, *, vina_program=None, receptor_file=None, obabel_program=None):
         super().__init__()
         
         if target == 'fa7':
@@ -38,8 +39,31 @@ class DockingVina(object):
         elif target == 'braf':
             self.box_center = (84.194,6.949,-7.081)
             self.box_size = (22.032,19.211,14.106)
-        self.vina_program = '/home/<your path>/Desktop/saturn/oracles/docking/docking_grids/qvina02'
-        self.receptor_file = f'/home/<your path>/Desktop/saturn/oracles/docking/docking_grids/{target}.pdbqt'
+        grid_dir = os.environ.get("SPECTRALMOL_DOCKING_GRID_DIR", "").strip()
+        self.vina_program = str(
+            vina_program
+            or os.environ.get("SPECTRALMOL_QVINA_BINARY", "").strip()
+            or which("qvina02")
+            or which("qvina2")
+            or ""
+        )
+        self.receptor_file = str(
+            receptor_file
+            or os.environ.get("SPECTRALMOL_RECEPTOR_FILE", "").strip()
+            or (os.path.join(grid_dir, f"{target}.pdbqt") if grid_dir else "")
+        )
+        self.obabel_program = str(
+            obabel_program
+            or os.environ.get("SPECTRALMOL_OBABEL_BINARY", "").strip()
+            or which("obabel")
+            or ""
+        )
+        if not self.vina_program:
+            raise FileNotFoundError("QuickVina2 executable not configured; set vina_program or SPECTRALMOL_QVINA_BINARY.")
+        if not self.receptor_file or not os.path.isfile(self.receptor_file):
+            raise FileNotFoundError("Docking receptor not configured; set receptor_file or SPECTRALMOL_RECEPTOR_FILE.")
+        if not self.obabel_program:
+            raise FileNotFoundError("OpenBabel executable not configured; set obabel_program or SPECTRALMOL_OBABEL_BINARY.")
         self.exhaustiveness = 1
         self.num_sub_proc = 10
         self.num_cpu_dock = 5
@@ -47,15 +71,8 @@ class DockingVina(object):
         self.timeout_gen3d = 30
         self.timeout_dock = 100
 
-        i = 0
-        while True:
-            tmp_dir = f'tmp/tmp{i}'
-            if not os.path.exists(tmp_dir):
-                print(f'Docking tmp dir: {tmp_dir}')
-                os.makedirs(tmp_dir)
-                self.temp_dir = tmp_dir
-                break
-            i += 1
+        self.temp_dir = tempfile.mkdtemp(prefix="spectralmol-docking-")
+        print(f"Docking tmp dir: {self.temp_dir}")
 
     def gen_3d(self, smi, ligand_mol_file):
         """
@@ -64,10 +81,14 @@ class DockingVina(object):
                 SMILES string
                 ligand_mol_file (output file)
         """
-        run_line = 'obabel -:%s --gen3D -O %s' % (smi, ligand_mol_file)
-        result = subprocess.check_output(run_line.split(),
-                                         stderr=subprocess.STDOUT,
-                                         timeout=self.timeout_gen3d, universal_newlines=True)
+        subprocess.run(
+            [self.obabel_program, f"-:{smi}", "--gen3D", "-O", ligand_mol_file],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=self.timeout_gen3d,
+            text=True,
+        )
 
     def docking(self, receptor_file, ligand_mol_file, ligand_pdbqt_file, docking_pdbqt_file):
         """
@@ -83,17 +104,30 @@ class DockingVina(object):
         ms = list(pybel.readfile("mol", ligand_mol_file))
         m = ms[0]
         m.write("pdbqt", ligand_pdbqt_file, overwrite=True)
-        run_line = '%s --receptor %s --ligand %s --out %s' % (self.vina_program,
-                                                              receptor_file, ligand_pdbqt_file, docking_pdbqt_file)
-        run_line += ' --center_x %s --center_y %s --center_z %s' %(self.box_center)
-        run_line += ' --size_x %s --size_y %s --size_z %s' %(self.box_size)
-        run_line += ' --cpu %d' % (self.num_cpu_dock)
-        run_line += ' --num_modes %d' % (self.num_modes)
-        run_line += ' --exhaustiveness %d ' % (self.exhaustiveness)
-        result = subprocess.check_output(run_line.split(),
-                                         stderr=subprocess.STDOUT,
-                                         timeout=self.timeout_dock, universal_newlines=True)
-        result_lines = result.split('\n')
+        command = [
+            self.vina_program,
+            "--receptor", receptor_file,
+            "--ligand", ligand_pdbqt_file,
+            "--out", docking_pdbqt_file,
+            "--center_x", str(self.box_center[0]),
+            "--center_y", str(self.box_center[1]),
+            "--center_z", str(self.box_center[2]),
+            "--size_x", str(self.box_size[0]),
+            "--size_y", str(self.box_size[1]),
+            "--size_z", str(self.box_size[2]),
+            "--cpu", str(self.num_cpu_dock),
+            "--num_modes", str(self.num_modes),
+            "--exhaustiveness", str(self.exhaustiveness),
+        ]
+        result = subprocess.run(
+            command,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=self.timeout_dock,
+            text=True,
+        )
+        result_lines = result.stdout.split('\n')
 
         check_result = False
         affinity_list = list()
@@ -204,7 +238,7 @@ class DockingVina(object):
         return affinity_list
     
     def __del__(self):
-        if os.path.exists(self.temp_dir):
+        if hasattr(self, "temp_dir") and os.path.exists(self.temp_dir):
             rmtree(self.temp_dir)
             print(f'{self.temp_dir} removed')
 
@@ -224,7 +258,13 @@ class QuickVina2(OracleComponent):
     """
     def __init__(self, parameters: OracleComponentParameters):
         super().__init__(parameters)
-        self.vina_oracle = DockingVina(parameters.specific_parameters["target"])
+        specific = parameters.specific_parameters
+        self.vina_oracle = DockingVina(
+            specific["target"],
+            vina_program=specific.get("vina_program"),
+            receptor_file=specific.get("receptor_file"),
+            obabel_program=specific.get("obabel_program"),
+        )
         
     def __call__(self, mols: np.ndarray[Mol]) -> np.ndarray[float]:
         smiles = np.vectorize(Chem.MolToSmiles)(mols)

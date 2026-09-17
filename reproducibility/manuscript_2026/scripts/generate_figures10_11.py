@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import csv
 import matplotlib
@@ -7,7 +8,15 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import Draw, rdMolDescriptors
 
-out = Path("/tmp/spectralmol_fig10_11_20260915")
+parser = argparse.ArgumentParser(description="Generate manuscript Figures 10 and 11.")
+parser.add_argument(
+    "--output-dir",
+    type=Path,
+    default=Path(__file__).resolve().parents[1] / "figures",
+    help="Destination directory (default: reproducibility/manuscript_2026/figures).",
+)
+args = parser.parse_args()
+out = args.output_dir.expanduser().resolve()
 out.mkdir(parents=True, exist_ok=True)
 
 generated = [

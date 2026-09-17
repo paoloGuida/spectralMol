@@ -1,0 +1,21 @@
+[run]
+workflow = "saturn"
+output_dir = "results/custom_saturn"
+device = "cuda"
+
+[saturn]
+seeds = [0]
+budget = 1000
+population_size = 256
+batch_size = 16
+max_generations = 0
+seed_pool_size = 256
+oracle_template = "spectralMol/benchmarks/Saturn/table2_r_sa_qed_oracle_template.json"
+seed_smiles_dir = "reproducibility/manuscript_2026/inputs/saturn/seed_sets"
+receptor_file = "reproducibility/manuscript_2026/inputs/saturn/docking/7uvu-2-monomers-pdbfixer.pdbqt"
+reference_ligand_file = "reproducibility/manuscript_2026/inputs/saturn/docking/7uvu-reference.pdb"
+
+[external]
+saturn_repository = "../saturn"
+quickvina_binary = "../saturn/experimental_reproduction/synthesizability/QuickVina2-GPU-2.1/QuickVina2-GPU-2-1"
+openbabel_binary = "obabel"

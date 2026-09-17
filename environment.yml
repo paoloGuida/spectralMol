@@ -1,0 +1,9 @@
+name: spectralmol
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - openbabel
+  - pip
+  - pip:
+      - -e .[benchmarks,saturn,test]
