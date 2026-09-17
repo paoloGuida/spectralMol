@@ -1,0 +1,7 @@
+python_executable=/ibex/user/colleoe/conda-environments/molscore/bin/python
+python_version=3.11.14 | packaged by conda-forge | (main, Jan 26 2026, 23:48:32) [GCC 14.3.0]
+rdkit=2025.09.5
+numpy=2.4.2
+pandas=2.3.3
+selfies=2.1.1
+morfeus=0.8.0

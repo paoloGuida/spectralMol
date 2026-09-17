@@ -1,0 +1,7 @@
+check	passed	observed	expected
+high-only keeps molecules closer to initial population than low-only	0	0.15577742239998563 vs 0.18465544612181506	high > low
+high-only preserves scaffold more often than low-only	1	0.023326188374732063 vs 0.013690050107372943	high > low
+low-only changes scaffold more often than high-only	1	0.9863099498926271 vs 0.9766738116252679	low > high
+low-only has larger heavy-atom shifts than high-only	0	8.002773801002148 vs 9.694994326062288	low > high
+high-only has more same-scaffold functional-group changes than low-only	1	0.02294792586054722 vs 0.013690050107372943	high > low
+random-matrix is not identical to full-spectrum in structural-change profile	1	profile differs	non-identical

@@ -1,2 +1,0 @@
-strategy,budget,seed,evaluated,generations,elapsed_seconds,n_unique,objective_max,objective_mean,pct_lt_minus9,pct_lt_minus10,modes_lt_minus9,modes_lt_minus10,docking_component
-scalar_aggregated,50,0,24,2,0.3045949935913086,24,0.701974093914032,0.6590421915054321,0.0,0.0,0.0,0.0,qed

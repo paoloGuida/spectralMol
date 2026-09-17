@@ -1,0 +1,43 @@
+Using output root: /ibex/scratch/colleoe/spectralMol/guacamol_10seed_spectralmol_graphga_mpo_v3_stats
+Seeds: 7,8,9,10,11,12,13,14,15,16
+
+Per-seed aggregate scores:
+  seed=7  spectralmol=14.997165  graphga=14.536268  delta_spectral_minus_graphga=+0.460897
+  seed=8  spectralmol=15.313828  graphga=14.517928  delta_spectral_minus_graphga=+0.795900
+  seed=9  spectralmol=14.555206  graphga=14.861397  delta_spectral_minus_graphga=-0.306191
+  seed=10  spectralmol=15.569656  graphga=14.452934  delta_spectral_minus_graphga=+1.116723
+  seed=11  spectralmol=14.998703  graphga=14.595712  delta_spectral_minus_graphga=+0.402991
+  seed=12  spectralmol=15.280398  graphga=14.688919  delta_spectral_minus_graphga=+0.591479
+  seed=13  spectralmol=15.302101  graphga=14.877504  delta_spectral_minus_graphga=+0.424597
+  seed=14  spectralmol=15.054237  graphga=14.486120  delta_spectral_minus_graphga=+0.568117
+  seed=15  spectralmol=15.045049  graphga=15.040084  delta_spectral_minus_graphga=+0.004966
+  seed=16  spectralmol=15.036896  graphga=14.344394  delta_spectral_minus_graphga=+0.692502
+
+Aggregate statistics over complete seeds:
+  spectralmol  n=10 mean=15.115324 std=0.271635 min=14.555206 max=15.569656
+  graphga      n=10 mean=14.640126 std=0.221501 min=14.344394 max=15.040084
+  delta        n=10 mean=0.475198 std=0.397694 min=-0.306191 max=1.116723
+
+Per-task mean scores:
+  Celecoxib_rediscovery                0  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=0.936201  graphga_std=0.135411  delta_mean=+0.063799
+  Troglitazone_rediscovery             1  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=0.555690  graphga_std=0.055981  delta_mean=+0.444310
+  Thiothixene_rediscovery              2  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=0.683593  graphga_std=0.010539  delta_mean=+0.316407
+  Aripiprazole_similarity              3  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=0.968385  graphga_std=0.040815  delta_mean=+0.031615
+  Albuterol_similarity                 4  spectralmol_mean=0.637296  spectralmol_std=0.137538  graphga_mean=1.000000  graphga_std=0.000000  delta_mean=-0.362704
+  Mestranol_similarity                 5  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=0.837012  graphga_std=0.086692  delta_mean=+0.162988
+  C11H24                               6  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=1.000000  graphga_std=0.000000  delta_mean=+0.000000
+  C9H10N2O2PF2Cl                       7  spectralmol_mean=0.939198  spectralmol_std=0.044286  graphga_mean=0.943159  graphga_std=0.041344  delta_mean=-0.003961
+  Median_molecules_1                   8  spectralmol_mean=0.406780  spectralmol_std=0.000000  graphga_mean=0.351447  graphga_std=0.037171  delta_mean=+0.055333
+  Median_molecules_2                   9  spectralmol_mean=0.393178  spectralmol_std=0.014805  graphga_mean=0.316564  graphga_std=0.023728  delta_mean=+0.076613
+  Osimertinib_MPO                     10  spectralmol_mean=0.892197  spectralmol_std=0.109733  graphga_mean=0.921952  graphga_std=0.014287  delta_mean=-0.029755
+  Fexofenadine_MPO                    11  spectralmol_mean=1.000000  spectralmol_std=0.000000  graphga_mean=0.915781  graphga_std=0.028542  delta_mean=+0.084219
+  Ranolazine_MPO                      12  spectralmol_mean=0.764741  spectralmol_std=0.060749  graphga_mean=0.884234  graphga_std=0.013004  delta_mean=-0.119493
+  Perindopril_MPO                     13  spectralmol_mean=0.420084  spectralmol_std=0.000000  graphga_mean=0.716010  graphga_std=0.014334  delta_mean=-0.295926
+  Amlodipine_MPO                      14  spectralmol_mean=0.864755  spectralmol_std=0.119511  graphga_mean=0.810858  graphga_std=0.025944  delta_mean=+0.053897
+  Sitagliptin_MPO                     15  spectralmol_mean=0.765439  spectralmol_std=0.059153  graphga_mean=0.775375  graphga_std=0.049351  delta_mean=-0.009936
+  Zaleplon_MPO                        16  spectralmol_mean=0.700521  spectralmol_std=0.013762  graphga_mean=0.589931  graphga_std=0.027097  delta_mean=+0.110590
+  Valsartan_smarts                    17  spectralmol_mean=0.031071  spectralmol_std=0.000284  graphga_mean=0.031591  graphga_std=0.000045  delta_mean=-0.000520
+  Deco_hop                            18  spectralmol_mean=0.633397  spectralmol_std=0.032569  graphga_mean=0.744254  graphga_std=0.010604  delta_mean=-0.110856
+  Scaffold_hop                        19  spectralmol_mean=0.666667  spectralmol_std=0.000000  graphga_mean=0.658088  graphga_std=0.014589  delta_mean=+0.008579
+
+Missing seed/task summaries: none

@@ -1,0 +1,18 @@
+# Manuscript update package provenance
+created_at_local=2026-08-24T12:02:43+0300
+local_workspace=/Volumes/colleoe/molevoDrugDiscovery_2/SpectralMol
+source_pdf=/Users/colleoe/Downloads/Draft_EvolutionaryAlgorithm-19.pdf
+fresh_stamp=20260818_083101
+guacamol_fresh_root=/ibex/scratch/colleoe/spectralMol/merged_fresh_repro_20260818_083101/guacamol_mpo_v3
+saturn_fresh_root=/ibex/scratch/colleoe/spectralMol/merged_fresh_repro_20260818_083101/saturn_table8_v119/20260818_083655/table8_v118_strict_mode_cap_v119
+guacamol_original_job=50655121
+guacamol_failed_sparse_rerun=50811604
+guacamol_corrected_missing_rerun=50811649
+guacamol_dependent_aggregate_job=50811736
+guacamol_top200_extract_job=50814157
+saturn_fresh_job=50655300
+
+# Git for current tree
+/Volumes/colleoe/molevoDrugDiscovery_2
+0d803b23deac72d381a680d4f4c868c041ca6e31
+?? ./

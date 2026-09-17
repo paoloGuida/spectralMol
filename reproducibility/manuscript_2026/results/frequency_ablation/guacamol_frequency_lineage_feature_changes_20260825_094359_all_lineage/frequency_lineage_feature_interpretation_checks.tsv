@@ -1,0 +1,7 @@
+check	passed	observed	expected
+high-only children are closer to their recorded parents than low-only	0	0.222802557644755 vs 0.421358621470323	high > low
+high-only preserves parent scaffold more often than low-only	0	0.16825 vs 0.43075	high > low
+low-only changes parent scaffold more often than high-only	0	0.56925 vs 0.83175	low > high
+low-only has larger parent-child heavy-atom shifts than high-only	0	3.9916666666666667 vs 11.958666666666666	low > high
+high-only has more same-scaffold functional-group changes than low-only	0	0.14241666666666666 vs 0.37766666666666665	high > low
+random-matrix differs from full-spectrum in explicit parent-child structural profile	1	profile differs	non-identical
