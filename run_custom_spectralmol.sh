@@ -3,20 +3,21 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Run a custom SpectralMol benchmark job on IBEX.
+Run a custom SpectralMol benchmark locally or with Slurm.
 
 Usage:
-  CONFIG_FILE=examples/custom_guacamol.env bash run_custom_spectralmol_ibex.sh
-  CONFIG_FILE=examples/custom_saturn.env  bash run_custom_spectralmol_ibex.sh
+  CONFIG_FILE=examples/custom_guacamol.env bash run_custom_spectralmol.sh
+  CONFIG_FILE=examples/custom_saturn.env  bash run_custom_spectralmol.sh
 
-By default this is a dry run and only prints the sbatch command.
-Set SUBMIT=1 to submit.
+Local execution is the default. Set EXECUTION_BACKEND=slurm to print the
+sbatch command and add SUBMIT=1 to submit it.
 
 Key variables:
   BENCHMARK_KIND=guacamol|saturn
   CONFIG_FILE=/path/to/sourceable.env
-  SUBMIT=0|1
-  WORK_DIR=/home/$USER/molevoDrugDiscovery_2/SpectralMol
+  EXECUTION_BACKEND=local|slurm
+  SUBMIT=0|1 (Slurm only)
+  WORK_DIR=/path/to/SpectralMol
 
 GuacaMol variables:
   MODELS=spectralmol
@@ -29,7 +30,7 @@ GuacaMol variables:
   POPULATION_SIZE=256
   BATCH_SIZE=64
   SEED_SMILES_FILE=/path/to/seeds.smi
-  OUTPUT_DIR=/ibex/scratch/$USER/spectralMol/custom_guacamol
+  OUTPUT_DIR=/path/to/results/custom_guacamol
 
 SATURN variables:
   SEED_LIST=0
@@ -38,7 +39,7 @@ SATURN variables:
   SATURN_ORACLE_TEMPLATE=/path/to/oracle_template.json
   SEED_SMILES_FILE=/path/to/seeds.smi
   USE_PER_SEED_SEED_SMILES=0
-  OUTPUT_ROOT=/ibex/scratch/$USER/spectralMol/custom_saturn
+  OUTPUT_ROOT=/path/to/results/custom_saturn
 EOF
 }
 
@@ -80,7 +81,7 @@ run_or_print() {
   quote_command "${cmd[@]}"
   if [[ "${SUBMIT}" == "1" ]]; then
     if ! command -v sbatch >/dev/null 2>&1; then
-      echo "[custom] sbatch not found. Run this on an IBEX login node." >&2
+      echo "[custom] sbatch not found. Use EXECUTION_BACKEND=local or install Slurm." >&2
       exit 2
     fi
     "${cmd[@]}"
@@ -90,14 +91,16 @@ run_or_print() {
 }
 
 USER_NAME="${USER:-$(id -un 2>/dev/null || printf user)}"
-if [[ -f "sbatch_guacamol_graphga_vs_spectralmol_ibex.sh" && -d "spectralMol" ]]; then
+if [[ -f "sbatch_guacamol_graphga_vs_spectralmol_slurm.sh" && -d "spectralMol" ]]; then
   DEFAULT_WORK_DIR="$(pwd)"
 else
-  DEFAULT_WORK_DIR="/home/${USER_NAME}/molevoDrugDiscovery_2/SpectralMol"
+  DEFAULT_WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
 set_default WORK_DIR "${DEFAULT_WORK_DIR}"
 set_default SUBMIT "0"
+set_default EXECUTION_BACKEND "local"
+set_default LOCAL_TASK_INDEX "0"
 BENCHMARK_KIND="${BENCHMARK_KIND:-${1:-guacamol}}"
 BENCHMARK_KIND="$(printf "%s" "${BENCHMARK_KIND}" | tr "[:upper:]" "[:lower:]")"
 
@@ -120,7 +123,7 @@ case "${BENCHMARK_KIND}" in
     set_default BATCH_SIZE "64"
     set_default BUDGET "10000"
     set_default SEED_POOL_SIZE "2000"
-    set_default OUTPUT_DIR "/ibex/scratch/${USER_NAME}/spectralMol/custom_guacamol_$(date +%Y%m%d_%H%M%S)"
+    set_default OUTPUT_DIR "${WORK_DIR}/reproducibility_runs/custom_guacamol_$(date +%Y%m%d_%H%M%S)"
     set_default OUTPUT_BASE_DIR "${OUTPUT_DIR}"
     set_default FREQUENCY_MODE "full-spectrum"
     set_default SPECTRAL_L "32"
@@ -146,15 +149,26 @@ case "${BENCHMARK_KIND}" in
     export INCLUDE_CSV="${INCLUDE_CSV:-}"
     export EXCLUDE_CSV="${EXCLUDE_CSV:-}"
     export TASK_INDEXES_CSV="${TASK_INDEXES_CSV:-}"
+    if [[ "${EXECUTION_BACKEND}" == "local" ]]; then
+      if [[ "${GUACAMOL_USE_TASK_ARRAY}" == "1" ]]; then
+        SLURM_ARRAY_TASK_ID="${LOCAL_TASK_INDEX}" bash sbatch_guacamol_spectralmol_task_array_slurm.sh
+      else
+        bash sbatch_guacamol_graphga_vs_spectralmol_slurm.sh
+      fi
+      exit $?
+    elif [[ "${EXECUTION_BACKEND}" != "slurm" ]]; then
+      echo "[custom] unknown EXECUTION_BACKEND=${EXECUTION_BACKEND}" >&2
+      exit 2
+    fi
     cmd=(sbatch --cpus-per-task "${CPUS_PER_TASK}" --mem "${MEM}" --time "${TIME}")
     if [[ -n "${PARTITION}" ]]; then
       cmd+=(--partition "${PARTITION}")
     fi
     cmd+=(--export=ALL)
     if [[ "${GUACAMOL_USE_TASK_ARRAY}" == "1" ]]; then
-      cmd+=(--array "${TASK_ARRAY}" sbatch_guacamol_spectralmol_task_array_ibex.sh)
+      cmd+=(--array "${TASK_ARRAY}" sbatch_guacamol_spectralmol_task_array_slurm.sh)
     else
-      cmd+=(sbatch_guacamol_graphga_vs_spectralmol_ibex.sh)
+      cmd+=(sbatch_guacamol_graphga_vs_spectralmol_slurm.sh)
     fi
     run_or_print "${cmd[@]}"
     ;;
@@ -171,7 +185,7 @@ case "${BENCHMARK_KIND}" in
     set_default POPULATION_SIZE "256"
     set_default BATCH_SIZE "16"
     set_default GENERATIONS "0"
-    set_default OUTPUT_ROOT "/ibex/scratch/${USER_NAME}/spectralMol/custom_saturn_theta_$(date +%Y%m%d_%H%M%S)"
+    set_default OUTPUT_ROOT "${WORK_DIR}/reproducibility_runs/custom_saturn_theta_$(date +%Y%m%d_%H%M%S)"
     set_default FREQUENCY_MODE "full-spectrum"
     set_default SPECTRAL_L "48"
     set_default SPECTRAL_K "24"
@@ -202,6 +216,13 @@ case "${BENCHMARK_KIND}" in
     export MOLSCORE_SATURN_OBABEL_BINARY="${MOLSCORE_SATURN_OBABEL_BINARY:-}"
     export SEED_SMILES_FILE="${SEED_SMILES_FILE:-}"
     export PER_SEED_SEED_SMILES_DIR="${PER_SEED_SEED_SMILES_DIR:-}"
+    if [[ "${EXECUTION_BACKEND}" == "local" ]]; then
+      SLURM_ARRAY_TASK_ID="${LOCAL_TASK_INDEX}" bash sbatch_saturn_theta_nsga2_slurm.sh
+      exit $?
+    elif [[ "${EXECUTION_BACKEND}" != "slurm" ]]; then
+      echo "[custom] unknown EXECUTION_BACKEND=${EXECUTION_BACKEND}" >&2
+      exit 2
+    fi
     cmd=(sbatch --cpus-per-task "${CPUS_PER_TASK}" --mem "${MEM}" --time "${TIME}")
     if [[ -n "${PARTITION}" ]]; then
       cmd+=(--partition "${PARTITION}")
@@ -209,7 +230,7 @@ case "${BENCHMARK_KIND}" in
     if [[ -n "${GRES}" && "${GRES}" != "none" ]]; then
       cmd+=(--gres "${GRES}")
     fi
-    cmd+=(--array "${TASK_ARRAY}" --export=ALL sbatch_saturn_theta_nsga2_ibex.sh)
+    cmd+=(--array "${TASK_ARRAY}" --export=ALL sbatch_saturn_theta_nsga2_slurm.sh)
     run_or_print "${cmd[@]}"
     ;;
 

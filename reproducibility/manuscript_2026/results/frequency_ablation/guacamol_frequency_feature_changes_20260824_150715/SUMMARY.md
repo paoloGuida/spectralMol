@@ -1,7 +1,7 @@
 # GuacaMol Frequency Feature-Change Analysis
 
 Generated: 2026-08-24T19:49:16+00:00
-Input root: `/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_merged_20260824_150715`
+Input root: `PORTABLE_OUTPUT_ROOT/guacamol_frequency_ablation_merged_20260824_150715`
 Source: `generator-top`
 Molecule set: top 100 unique, non-initial generated molecules per task/seed run.
 

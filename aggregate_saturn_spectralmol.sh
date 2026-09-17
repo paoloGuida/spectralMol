@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUTPUT_ROOT="${OUTPUT_ROOT:-/ibex/scratch/${USER:-colleoe}/spectralMol/saturn_spectralmol_theta}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-$PWD/reproducibility_runs/saturn_spectralmol_theta}"
 SEED_LIST_RAW="${SEED_LIST:-${SEED_LIST_CSV:-7}}"
 
-/ibex/user/colleoe/conda-environments/molscore/bin/python - <<'PY'
+"${SPECTRALMOL_PYTHON:-python3}" - <<'PY'
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,7 +12,7 @@ import csv
 import math
 import os
 
-output_root = Path(os.environ.get("OUTPUT_ROOT", "/ibex/scratch/colleoe/spectralMol/saturn_spectralmol_theta"))
+output_root = Path(os.environ.get("OUTPUT_ROOT", "reproducibility_runs/saturn_spectralmol_theta"))
 seed_raw = os.environ.get("SEED_LIST") or os.environ.get("SEED_LIST_CSV", "7")
 seed_raw = seed_raw.replace(":", ",").replace(";", ",")
 seeds = [s.strip() for s in seed_raw.split(",") if s.strip()]

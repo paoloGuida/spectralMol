@@ -4,8 +4,8 @@ set -euo pipefail
 
 # Automatic Saturn Table 8 tuning loop for theta-only SpectralMol NSGA-II.
 #
-# Run this from the SpectralMol repository on an Ibex login node. The script
-# submits one profile at a time, waits for Slurm completion, runs the Table 8
+# Run this from the SpectralMol repository. The script executes locally by
+# default or submits to Slurm, runs the Table 8
 # analyzer, parses the target metrics, and stops when the requested target is
 # met or all profiles are exhausted.
 
@@ -21,17 +21,18 @@ set_default() {
   fi
 }
 
-set_default PYTHON_BIN "/ibex/user/${USER_NAME}/conda-environments/molscore/bin/python"
+set_default PYTHON_BIN "${PYTHON:-python3}"
 set_default WORK_DIR "${SCRIPT_DIR}"
-set_default SBATCH_SCRIPT "${WORK_DIR}/sbatch_saturn_theta_nsga2_ibex.sh"
+set_default SBATCH_SCRIPT "${WORK_DIR}/sbatch_saturn_theta_nsga2_slurm.sh"
 set_default ANALYZER "${WORK_DIR}/spectralMol/benchmarks/Saturn/analyze_theta_nsga2_saturn.py"
-set_default PER_SEED_SEED_SMILES_DIR "/home/${USER_NAME}/molevoDrugDiscovery_2/Saturn/data/zinc250k/saturn1000_overperforming_init_seedsets_10seeds_qsa_diverse_v1"
+set_default PER_SEED_SEED_SMILES_DIR "${WORK_DIR}/reproducibility/manuscript_2026/inputs/saturn/seed_sets"
 set_default SEED_LIST "0"
 set_default BUDGET "1000"
 set_default ARRAY_CONCURRENCY ""
 set_default POLL_SECONDS "60"
 set_default AUTO_RUN_ID "$(date +%Y%m%d_%H%M%S)"
-set_default OUTPUT_BASE "/ibex/scratch/${USER_NAME}/spectralMol/saturn_theta_auto_tune"
+set_default OUTPUT_BASE "${WORK_DIR}/reproducibility_runs/saturn_theta_auto_tune"
+set_default EXECUTION_BACKEND "local"
 set_default RESULTS_BASE "${WORK_DIR}/reproducibility_backups/saturn_theta_nsga2_table8_20260720/auto_tuning_${AUTO_RUN_ID}"
 set_default PROFILE_NAMES "generatedlineage_v11 sitescan_v15 sitescan_heavy_v16 microtight_v17 generated_anchor_v18 medchemE_low_v19 generated_anchor_clean_v20 site_scan_soft_v21 broad_macro_v22 generatedlineage_druglike_v23 soft_druglike_v24 m10_explore_v25 seedhit_micro_v26 balanced_priority_v27 dockstrong_priority_v28 fullseed_dockstrong_v29 fullseed_balanced_v30 fullseed_allinit_v31 safilter_balanced_v32 safilter_dockstrong_v33"
 set_default RESCORE_ONLY "0"
@@ -2975,16 +2976,31 @@ main() {
     export BUDGET
     export OUTPUT_ROOT="${output_root}"
 
-    echo "[auto-saturn] submitting profile=${profile}"
+    echo "[auto-saturn] running profile=${profile} backend=${EXECUTION_BACKEND}"
     echo "[auto-saturn] output_root=${output_root}"
     local jobid
-    if [[ -n "${SBATCH_EXTRA_ARGS:-}" ]]; then
-      echo "[auto-saturn] sbatch_extra_args=${SBATCH_EXTRA_ARGS}"
+    if [[ "${EXECUTION_BACKEND}" == "local" ]]; then
+      jobid="local-${profile}"
+      local task_index
+      for ((task_index = 0; task_index < n; task_index++)); do
+        echo "[auto-saturn] local seed task ${task_index}/$((n - 1))"
+        SLURM_ARRAY_TASK_ID="${task_index}" bash "${SBATCH_SCRIPT}"
+      done
+    elif [[ "${EXECUTION_BACKEND}" == "slurm" ]]; then
+      command -v sbatch >/dev/null 2>&1 || {
+        echo "[auto-saturn] sbatch not found; use EXECUTION_BACKEND=local." >&2
+        exit 2
+      }
+      if [[ -n "${SBATCH_EXTRA_ARGS:-}" ]]; then
+        echo "[auto-saturn] sbatch_extra_args=${SBATCH_EXTRA_ARGS}"
+      fi
+      jobid="$(sbatch ${SBATCH_EXTRA_ARGS:-} --array="${arr}" --export=ALL "${SBATCH_SCRIPT}" | awk '{print $4}')"
+      echo "[auto-saturn] submitted job ${jobid}"
+      wait_for_job "${jobid}"
+    else
+      echo "[auto-saturn] unknown EXECUTION_BACKEND=${EXECUTION_BACKEND}" >&2
+      exit 2
     fi
-    jobid="$(sbatch ${SBATCH_EXTRA_ARGS:-} --array="${arr}" --export=ALL "${SBATCH_SCRIPT}" | awk '{print $4}')"
-    echo "[auto-saturn] submitted job ${jobid}"
-
-    wait_for_job "${jobid}"
     echo "[auto-saturn] job ${jobid} finished; analyzing"
     if ! "${PYTHON_BIN}" "${ANALYZER}" \
       --input-root "${output_root}" \
