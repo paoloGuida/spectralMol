@@ -296,12 +296,8 @@ def load_model_specs(path: Path) -> dict[str, ModelSpec]:
 
 
 def choose_python_bin(cli_python: str) -> str:
-    if cli_python:
-        return cli_python
-    candidate = Path("/opt/anaconda3/envs/molscore/bin/python")
-    if candidate.exists():
-        return str(candidate)
-    return sys.executable
+    """Use an explicit interpreter when supplied, otherwise the active Python."""
+    return cli_python or sys.executable
 
 
 def resolve_dataframe_backend(requested: str) -> str:

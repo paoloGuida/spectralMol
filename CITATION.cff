@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated manuscript. Replace the placeholder metadata when the manuscript is published."
+title: "SpectralMol"
+type: software
+version: 0.1.0
+date-released: 2026-09-17
+authors:
+  - name: "Authors listed in the associated manuscript"
+repository-code: "https://github.com/paoloGuida/spectralMol"
+license: MIT

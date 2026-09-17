@@ -1,0 +1,36 @@
+[run]
+workflow = "saturn"
+output_dir = "results/saturn_table8"
+device = "cuda"
+
+[saturn]
+seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+budget = 1000
+population_size = 256
+batch_size = 16
+max_generations = 0
+top_k = 100
+seed_pool_size = 256
+tournament_k = 8
+immigrant_fraction = 0.02
+parent_pool_fraction = 0.50
+stagnation_patience = 12
+stagnation_mutation_boost = 2
+frequency_mode = "full-spectrum"
+spectral_l = 48
+spectral_k = 24
+spectral_d = 32
+spectral_decode_attempts = 16
+oracle_template = "spectralMol/benchmarks/Saturn/table2_r_sa_qed_oracle_template.json"
+seed_smiles_dir = "reproducibility/manuscript_2026/inputs/saturn/seed_sets"
+receptor_file = "reproducibility/manuscript_2026/inputs/saturn/docking/7uvu-2-monomers-pdbfixer.pdbqt"
+reference_ligand_file = "reproducibility/manuscript_2026/inputs/saturn/docking/7uvu-reference.pdb"
+oracle_config_key = "oracle"
+analyze_after_run = true
+
+[external]
+saturn_repository = "../saturn"
+quickvina_binary = "../saturn/experimental_reproduction/synthesizability/QuickVina2-GPU-2.1/QuickVina2-GPU-2-1"
+openbabel_binary = "obabel"
+# Set this only if the system OpenCL loader cannot find its library.
+opencl_library_dir = ""

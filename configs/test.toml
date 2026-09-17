@@ -1,0 +1,7 @@
+[run]
+workflow = "smoke"
+output_dir = "results/smoke"
+device = "cpu"
+
+[smoke]
+seed = 7

@@ -8,18 +8,18 @@
     "type": "command",
     "enabled": true,
     "description": "MolScore_examples GraphGA runner.",
-    "command": "{python} {molscore_root}/software/run_graphga_example_wrapper.py --graphga-script {examples_root}/GraphGA/molscore_GB_GA.py --molscore {molscore_target} --smiles_file {shared_init_file} --starting_population_file {shared_init_file} --seed {seed} --budget {budget} --output_dir {model_output_dir} --population_size {population_size} --offspring_size {population_size} --generations {generations} --n_jobs {graphga_n_jobs} --patience 20 {include_args} {exclude_args}"
+    "command": "{python} {repo_root}/benchmarks/Guacamol/run_graphga_example_wrapper.py --graphga-script {examples_root}/GraphGA/molscore_GB_GA.py --molscore {molscore_target} --smiles_file {shared_init_file} --starting_population_file {shared_init_file} --seed {seed} --budget {budget} --output_dir {model_output_dir} --population_size {population_size} --offspring_size {population_size} --generations {generations} --n_jobs {graphga_n_jobs} --patience 20 {include_args} {exclude_args} {task_indexes_args}"
   },
   "crem_example": {
     "type": "command",
     "enabled": true,
     "description": "MolScore_examples CReM runner with auto fragment-DB bootstrap.",
-    "command": "{python} {molscore_root}/software/run_crem_example.py --examples-root {examples_root} --molscore {molscore_target} --smiles-file {shared_init_file} --seed {seed} --generations {generations} --population-size {population_size} --budget {budget} --output-dir {model_output_dir} --ncpu {crem_ncpu} --replacements {crem_replacements} {include_args} {exclude_args}"
+    "command": "{python} {repo_root}/benchmarks/Guacamol/run_crem_example.py --examples-root {examples_root} --molscore {molscore_target} --smiles-file {shared_init_file} --seed {seed} --generations {generations} --population-size {population_size} --budget {budget} --output-dir {model_output_dir} --ncpu {crem_ncpu} --replacements {crem_replacements} {include_args} {exclude_args}"
   },
   "smiles_rnn_example": {
     "type": "command",
     "enabled": true,
     "description": "MolScore_examples SMILES-RNN runner (auto-detects script in SMILES-RNN submodule).",
-    "command": "{python} {molscore_root}/software/run_smiles_rnn_example.py --examples-root {examples_root} --molscore {molscore_target} --smiles-file {shared_init_file} --seed {seed} --generations {generations} --population-size {population_size} --batch-size {batch_size} --budget {budget} --output-dir {model_output_dir} --device {smiles_rnn_device} {include_args} {exclude_args}"
+    "command": "{python} {repo_root}/benchmarks/Guacamol/run_smiles_rnn_example.py --examples-root {examples_root} --molscore {molscore_target} --smiles-file {shared_init_file} --seed {seed} --generations {generations} --population-size {population_size} --batch-size {batch_size} --budget {budget} --output-dir {model_output_dir} --device {smiles_rnn_device} {include_args} {exclude_args}"
   }
 }

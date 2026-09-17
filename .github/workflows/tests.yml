@@ -1,0 +1,21 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lightweight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e .[test]
+      - run: python run.py --help
+      - run: python run.py --config configs/test.toml
+      - run: python run.py --config configs/verify.toml
+      - run: pytest -q spectralMol/tests/unit/test_public_cli.py

@@ -1,0 +1,9 @@
+[run]
+workflow = "results"
+
+[results]
+files = [
+  "reproducibility/manuscript_2026/results/guacamol/guacamol_statistics_table.tsv",
+  "reproducibility/manuscript_2026/results/guacamol/guacamol_per_seed_aggregate.tsv",
+  "reproducibility/manuscript_2026/results/saturn/table8_spectralmol.tsv",
+]

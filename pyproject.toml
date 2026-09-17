@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectralmol"
+version = "0.1.0"
+description = "Fourier-theta molecular optimization and reproducible GuacaMol/SATURN benchmarks"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+dependencies = [
+  "joblib>=1.3",
+  "matplotlib>=3.7",
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "Pillow>=10",
+  "rdkit>=2023.9",
+  "scipy>=1.10",
+  "selfies>=2.1",
+  "tomli>=2.0; python_version < '3.11'",
+  "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+benchmarks = ["guacamol>=0.5.5", "molscore>=1.9"]
+saturn = ["morfeus-ml>=0.8", "molscore>=1.9"]
+test = ["pytest>=7.4"]
+
+[project.scripts]
+spectralmol = "spectralmol_cli:main"
+
+[tool.setuptools]
+py-modules = ["spectralmol_cli"]
+package-dir = {"" = "spectralMol"}
+
+[tool.setuptools.packages.find]
+where = ["spectralMol"]
+include = ["core*", "benchmarks*"]
+
+[tool.pytest.ini_options]
+testpaths = ["spectralMol/tests"]
+markers = [
+  "unit: fast unit tests",
+  "integration: integration tests",
+  "smoke: end-to-end smoke tests",
+  "gpu: requires GPU-enabled libraries or hardware",
+  "requires_xtb: requires xtb in PATH",
+  "requires_quickvina2: requires QuickVina2 in PATH",
+  "requires_molscore: requires molscore",
+]
