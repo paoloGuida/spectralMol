@@ -1,0 +1,17 @@
+Captured on IBEX for the manuscript release, 2026-09-17
+
+Python 3.11.14 (conda-forge, GCC 14.3.0)
+numpy 2.4.2
+pandas 2.3.3
+rdkit 2025.09.5
+torch 2.10.0+cu128
+scipy 1.17.1
+Open Babel 3.1.0
+CUDA module 11.8
+NVIDIA OpenCL loader /lib64/libOpenCL.so.1
+
+SATURN commit 3aea130158c488050426a91716b8c6ff34f05473
+SATURN origin https://github.com/schwallergroup/saturn.git
+MolScore_examples commit 92bb08abb1584cd04f6ee21d894d17de9be56d7b
+MolScore_examples origin https://github.com/MorganCThomas/MolScore_examples.git
+QuickVina2-GPU SHA256 d1d0b0f42025ab9c6903c88dbbdfabf6337f91da48790d2c2416ea24745b0411

@@ -1,0 +1,77 @@
+{
+  "input_roots": [
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119"
+  ],
+  "strategy": "theta_nsga2_multiobjective",
+  "budget": 1000,
+  "expected_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "thresholds": [
+    -9.0,
+    -10.0
+  ],
+  "molecules_all_files": [
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed0/runs/budget_1000/seed_0/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed1/runs/budget_1000/seed_1/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed2/runs/budget_1000/seed_2/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed3/runs/budget_1000/seed_3/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed4/runs/budget_1000/seed_4/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed5/runs/budget_1000/seed_5/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed6/runs/budget_1000/seed_6/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed7/runs/budget_1000/seed_7/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed8/runs/budget_1000/seed_8/theta_nsga2_multiobjective/molecules_all.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed9/runs/budget_1000/seed_9/theta_nsga2_multiobjective/molecules_all.csv"
+  ],
+  "initial_population_files": [
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed0/runs/budget_1000/seed_0/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed1/runs/budget_1000/seed_1/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed2/runs/budget_1000/seed_2/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed3/runs/budget_1000/seed_3/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed4/runs/budget_1000/seed_4/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed5/runs/budget_1000/seed_5/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed6/runs/budget_1000/seed_6/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed7/runs/budget_1000/seed_7/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed8/runs/budget_1000/seed_8/theta_nsga2_multiobjective/snapshots/initial_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed9/runs/budget_1000/seed_9/theta_nsga2_multiobjective/snapshots/initial_population.csv"
+  ],
+  "final_population_files": [
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed0/runs/budget_1000/seed_0/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed1/runs/budget_1000/seed_1/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed2/runs/budget_1000/seed_2/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed3/runs/budget_1000/seed_3/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed4/runs/budget_1000/seed_4/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed5/runs/budget_1000/seed_5/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed6/runs/budget_1000/seed_6/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed7/runs/budget_1000/seed_7/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed8/runs/budget_1000/seed_8/theta_nsga2_multiobjective/snapshots/final_population.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed9/runs/budget_1000/seed_9/theta_nsga2_multiobjective/snapshots/final_population.csv"
+  ],
+  "summary_files": [
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed0/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed1/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed2/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed3/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed4/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed5/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed6/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed7/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed8/scalar_vs_nsga2_summary.csv",
+    "/ibex/user/colleoe/spectralMol/saturn_theta_auto_tune/20260817_013350/table8_v118_strict_mode_cap_v119/saturn_theta_nsga2_budget1000_seed9/scalar_vs_nsga2_summary.csv"
+  ],
+  "notes": [
+    "Table 8 Modes and Yield are per-seed values summarized across all expected seeds; missing/no-hit seeds contribute zero.",
+    "Table 8 QED, SA, and MolWt columns are means of per-seed hit means over successful seeds.",
+    "Pooled property statistics are also saved for auditing but are not the primary manuscript replacement columns.",
+    "Figure 8/9 use final_population snapshots when available; otherwise all_molecules archive is used as fallback."
+  ]
+}

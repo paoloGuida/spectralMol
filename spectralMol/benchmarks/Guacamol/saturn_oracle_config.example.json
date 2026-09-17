@@ -1,0 +1,20 @@
+{
+  "oracle": {
+    "budget": 10000,
+    "allow_oracle_repeats": false,
+    "aggregator": "product",
+    "components": [
+      {
+        "name": "qed",
+        "weight": 1.0,
+        "preliminary_check": false,
+        "specific_parameters": {},
+        "reward_shaping_function_parameters": {
+          "transformation_function": "no_transformation",
+          "parameters": {}
+        }
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,13 @@
+field	value
+condition_list	full-spectrum,high-only,low-only,random-matrix
+seed_list	0,1,2,3,4,5
+n_tasks	20
+budget	20000
+generations	0
+population_size	256
+batch_size	256
+seed_pool_size	2000
+seed_smiles_file	/home/colleoe/ReinventCommunity/notebooks/data/chembl.filtered.smi
+models	spectralmol
+source_script	/home/colleoe/molevoDrugDiscovery_2/SpectralMol/sbatch_guacamol_frequency_ablation_ibex.sh
+delegated_script	/home/colleoe/molevoDrugDiscovery_2/SpectralMol/sbatch_guacamol_spectralmol_task_array_ibex.sh
