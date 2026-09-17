@@ -1,0 +1,10 @@
+label	role	name	seed	docking_raw	qed	sa	molwt	smiles	canonical_smiles	decode_reason	source
+G1	generated		8	-10.3	0.914	2.014	307.3	Cc1cc(C(F)(F)F)ccc1CCc1ccccc1C(N)=O	Cc1cc(C(F)(F)F)ccc1CCc1ccccc1C(N)=O	THETA_GENERATED_HIT_NEIGHBORHOOD:OK:CHEAP_PRESELECT	latest Saturn Table 8 run
+G2	generated		7	-10.3	0.764	2.204	311.7	N=C(Cl)c1ccccc1CCc1ccc(C(F)(F)F)cc1	N=C(Cl)c1ccccc1CCc1ccc(C(F)(F)F)cc1	THETA_LATE_GENERATED_HIT_SITE_SCAN:OK:CHEAP_PRESELECT	latest Saturn Table 8 run
+G3	generated		2	-10.2	0.942	2.103	294.3	NC(=O)c1ncccc1CCc1ccc(C(F)(F)F)cc1	NC(=O)c1ncccc1CCc1ccc(C(F)(F)F)cc1	THETA_LATE_GENERATED_HIT_SITE_SCAN:OK:CHEAP_PRESELECT	latest Saturn Table 8 run
+G4	generated		8	-10.2	0.776	2.153	291.3	CC(=N)c1ccccc1CCc1ccc(C(F)(F)F)cc1	CC(=N)c1ccccc1CCc1ccc(C(F)(F)F)cc1	THETA_GENERATED_HIT_SITE_SCAN:OK:CHEAP_PRESELECT	latest Saturn Table 8 run
+G5	generated		2	-10.1	0.938	2.02	295.3	O=C(O)c1ncccc1CCc1ccc(C(F)(F)F)cc1	O=C(O)c1ncccc1CCc1ccc(C(F)(F)F)cc1	THETA_LATE_GENERATED_HIT_SITE_SCAN:OK:CHEAP_PRESELECT	latest Saturn Table 8 run
+G6	generated		8	-10.1	0.919	1.828	293.3	NC(=O)c1ccccc1CCc1ccc(C(F)(F)F)cc1	NC(=O)c1ccccc1CCc1ccc(C(F)(F)F)cc1	THETA_GENERATED_HIT_SITE_SCAN:OK:CHEAP_PRESELECT	latest Saturn Table 8 run
+R1	reference	ONC201						Cc1ccccc1CN1C(=O)C2=C(CCN(Cc3ccccc3)C2)N2CCN=C12	Cc1ccccc1CN1C(=O)C2=C(CCN(Cc3ccccc3)C2)N2CCN=C12		ONC201 / dordaviprone reference
+R2	reference	ONC212						O=C1N(CC2=CC=C(C(F)(F)F)C=C2)C3=NCCN3C4=C1CN(CC5=CC=CC=C5)CC4	O=C1C2=C(CCN(Cc3ccccc3)C2)N2CCN=C2N1Cc1ccc(C(F)(F)F)cc1		ONC212 reference
+R3	reference	TR-107						N#Cc1cccc(CN2CC3=C(CC2)N=CN(Cc2ccc(Cl)cc2)C3=O)c1	N#Cc1cccc(CN2CCc3ncn(Cc4ccc(Cl)cc4)c(=O)c3C2)c1		TR-107 reference

@@ -1,0 +1,4 @@
+statistic	n	mean	sd	median	min	max	seed_level_result
+SpectralMol aggregate Sigma	10	15.230486	0.176493	15.229863	14.884556	15.485570	10/10 wins
+GraphGA aggregate Sigma	10	14.574242	0.256197	14.457435	14.338723	15.119834	0/10 wins
+Paired delta Sigma SpectralMol minus GraphGA	10	0.656244	0.295991	0.709641	0.153114	1.117942	10/10 positive; sign-test p=0.0009765625

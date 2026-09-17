@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /home/colleoe/molevoDrugDiscovery_2/SpectralMol
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 VERIFY_ROOT="${VERIFY_ROOT:-reproducibility_backups/unified_guacamol_saturn_20260817/verification}"
 mkdir -p "${VERIFY_ROOT}"

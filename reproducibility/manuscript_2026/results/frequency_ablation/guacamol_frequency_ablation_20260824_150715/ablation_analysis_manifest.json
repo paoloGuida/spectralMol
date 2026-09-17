@@ -1,0 +1,45 @@
+{
+  "created_at_utc": "2026-08-24T12:59:42Z",
+  "input_root": "/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_merged_20260824_150715",
+  "output_dir": "reproducibility_backups/unified_guacamol_saturn_20260817/verification/guacamol_frequency_ablation_20260824_150715",
+  "model": "spectralmol",
+  "budget": 20000,
+  "expected_seeds": 6,
+  "expected_tasks": 20,
+  "conditions": [
+    "full-spectrum",
+    "high-only",
+    "low-only",
+    "random-matrix"
+  ],
+  "manuscript_targets": {
+    "high-only": {
+      "mean_best_score": 0.7542,
+      "delta_vs_full": 0.005,
+      "mean_elapsed_seconds": 1331.3,
+      "speedup_vs_full": 1.156,
+      "evals_per_second": 15.023
+    },
+    "full-spectrum": {
+      "mean_best_score": 0.7492,
+      "delta_vs_full": 0.0,
+      "mean_elapsed_seconds": 1538.6,
+      "speedup_vs_full": 1.0,
+      "evals_per_second": 12.999
+    },
+    "low-only": {
+      "mean_best_score": 0.7367,
+      "delta_vs_full": -0.0125,
+      "mean_elapsed_seconds": 1548.1,
+      "speedup_vs_full": 0.994,
+      "evals_per_second": 12.919
+    },
+    "random-matrix": {
+      "mean_best_score": 0.6469,
+      "delta_vs_full": -0.1023,
+      "mean_elapsed_seconds": 1256.1,
+      "speedup_vs_full": 1.225,
+      "evals_per_second": 15.923
+    }
+  }
+}

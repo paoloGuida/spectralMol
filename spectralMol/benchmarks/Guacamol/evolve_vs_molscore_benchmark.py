@@ -12,7 +12,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -1318,6 +1318,21 @@ def write_spectral_genotype_snapshot(run_dir: Path, population: Sequence[Spectra
     scores = np.asarray([float(ind.score) for ind in population], dtype=np.float64)
     reasons = np.asarray([ind.decode_reason for ind in population], dtype=object)
     macro_counts = np.asarray([int(ind.macro_count) for ind in population], dtype=np.int64)
+    uids = np.asarray([int(getattr(ind, "uid", -1)) for ind in population], dtype=np.int64)
+    birth_generations = np.asarray(
+        [int(getattr(ind, "birth_generation", 0)) for ind in population],
+        dtype=np.int64,
+    )
+    lineage_operators = np.asarray([str(getattr(ind, "lineage_operator", "")) for ind in population], dtype=object)
+    parent_uids = np.asarray([int(getattr(ind, "parent_uid", -1)) for ind in population], dtype=np.int64)
+    parent_smiles = np.asarray([str(getattr(ind, "parent_smiles", "")) for ind in population], dtype=object)
+    parent_scores = np.asarray([float(getattr(ind, "parent_score", float("nan"))) for ind in population], dtype=np.float64)
+    parent2_uids = np.asarray([int(getattr(ind, "parent2_uid", -1)) for ind in population], dtype=np.int64)
+    parent2_smiles = np.asarray([str(getattr(ind, "parent2_smiles", "")) for ind in population], dtype=object)
+    parent2_scores = np.asarray([float(getattr(ind, "parent2_score", float("nan"))) for ind in population], dtype=np.float64)
+    parent3_uids = np.asarray([int(getattr(ind, "parent3_uid", -1)) for ind in population], dtype=np.int64)
+    parent3_smiles = np.asarray([str(getattr(ind, "parent3_smiles", "")) for ind in population], dtype=object)
+    parent3_scores = np.asarray([float(getattr(ind, "parent3_score", float("nan"))) for ind in population], dtype=np.float64)
     np.savez_compressed(
         run_dir / "spectral_genotypes_final.npz",
         theta=theta,
@@ -1325,6 +1340,18 @@ def write_spectral_genotype_snapshot(run_dir: Path, population: Sequence[Spectra
         scores=scores,
         decode_reasons=reasons,
         macro_counts=macro_counts,
+        uids=uids,
+        birth_generations=birth_generations,
+        lineage_operators=lineage_operators,
+        parent_uids=parent_uids,
+        parent_smiles=parent_smiles,
+        parent_scores=parent_scores,
+        parent2_uids=parent2_uids,
+        parent2_smiles=parent2_smiles,
+        parent2_scores=parent2_scores,
+        parent3_uids=parent3_uids,
+        parent3_smiles=parent3_smiles,
+        parent3_scores=parent3_scores,
     )
 
 
@@ -1550,8 +1577,150 @@ def evolve_spectral_on_task(
     archive: dict[str, float] = {}
     progress_rows: list[dict] = []
     molecule_score_rows: list[dict] = []
+    molecule_lineage_rows: list[dict] = []
+    lineage_by_smiles: dict[str, SpectralIndividual] = {}
     best_score_rows: list[dict] = []
     avg_score_rows: list[dict] = []
+    next_lineage_uid = 0
+
+    lineage_fields = [
+        "generation",
+        "uid",
+        "birth_generation",
+        "smiles",
+        "score",
+        "decode_reason",
+        "macro_count",
+        "lineage_operator",
+        "parent_uid",
+        "parent_smiles",
+        "parent_score",
+        "parent2_uid",
+        "parent2_smiles",
+        "parent2_score",
+        "parent3_uid",
+        "parent3_smiles",
+        "parent3_score",
+    ]
+
+    def lineage_spec(
+        operator: str,
+        *,
+        parent: SpectralIndividual | None = None,
+        parent2: SpectralIndividual | None = None,
+        parent3: SpectralIndividual | None = None,
+        parent_smiles: str = "",
+        parent2_smiles: str = "",
+        parent3_smiles: str = "",
+        parent_score: float = float("nan"),
+        parent2_score: float = float("nan"),
+        parent3_score: float = float("nan"),
+    ) -> dict[str, Any]:
+        return {
+            "operator": operator,
+            "parent": parent,
+            "parent2": parent2,
+            "parent3": parent3,
+            "parent_smiles": parent_smiles,
+            "parent2_smiles": parent2_smiles,
+            "parent3_smiles": parent3_smiles,
+            "parent_score": parent_score,
+            "parent2_score": parent2_score,
+            "parent3_score": parent3_score,
+        }
+
+    def ensure_lineage_uid(ind: SpectralIndividual, generation: int = 0, operator: str = "EXISTING") -> int:
+        nonlocal next_lineage_uid
+        if int(getattr(ind, "uid", -1)) < 0:
+            ind.uid = next_lineage_uid
+            next_lineage_uid += 1
+            ind.birth_generation = int(generation)
+            if not str(getattr(ind, "lineage_operator", "")):
+                ind.lineage_operator = operator
+        return int(ind.uid)
+
+    def apply_lineage(
+        ind: SpectralIndividual,
+        generation: int,
+        spec: dict[str, Any] | None = None,
+    ) -> SpectralIndividual:
+        spec = spec or lineage_spec(str(getattr(ind, "decode_reason", "UNKNOWN")))
+        ensure_lineage_uid(ind, generation, str(spec.get("operator") or getattr(ind, "decode_reason", "")))
+        ind.birth_generation = int(generation)
+        ind.lineage_operator = str(spec.get("operator") or getattr(ind, "decode_reason", ""))
+
+        parents = [
+            ("parent", "parent_uid", "parent_smiles", "parent_score"),
+            ("parent2", "parent2_uid", "parent2_smiles", "parent2_score"),
+            ("parent3", "parent3_uid", "parent3_smiles", "parent3_score"),
+        ]
+        for parent_key, uid_key, smiles_key, score_key in parents:
+            parent = spec.get(parent_key)
+            explicit_smiles = str(spec.get(smiles_key, "") or "")
+            explicit_score_raw = spec.get(score_key, float("nan"))
+            try:
+                explicit_score = float(explicit_score_raw)
+            except Exception:
+                explicit_score = float("nan")
+            if isinstance(parent, SpectralIndividual):
+                ensure_lineage_uid(parent, int(getattr(parent, "birth_generation", 0)), "EXISTING_PARENT")
+                setattr(ind, uid_key, int(getattr(parent, "uid", -1)))
+                setattr(ind, smiles_key, str(getattr(parent, "smiles", "")))
+                setattr(ind, score_key, float(getattr(parent, "score", float("nan"))))
+            elif explicit_smiles:
+                setattr(ind, uid_key, -1)
+                setattr(ind, smiles_key, explicit_smiles)
+                setattr(ind, score_key, explicit_score)
+            else:
+                setattr(ind, uid_key, -1)
+                setattr(ind, smiles_key, "")
+                setattr(ind, score_key, float("nan"))
+        return ind
+
+    def copy_lineage_fields(target: SpectralIndividual, source: SpectralIndividual) -> SpectralIndividual:
+        for attr in (
+            "uid",
+            "birth_generation",
+            "lineage_operator",
+            "parent_uid",
+            "parent_smiles",
+            "parent_score",
+            "parent2_uid",
+            "parent2_smiles",
+            "parent2_score",
+            "parent3_uid",
+            "parent3_smiles",
+            "parent3_score",
+        ):
+            setattr(target, attr, getattr(source, attr))
+        return target
+
+    def lineage_row(ind: SpectralIndividual, generation: int) -> dict[str, Any]:
+        return {
+            "generation": int(generation),
+            "uid": int(getattr(ind, "uid", -1)),
+            "birth_generation": int(getattr(ind, "birth_generation", generation)),
+            "smiles": str(ind.smiles),
+            "score": float(ind.score),
+            "decode_reason": str(ind.decode_reason),
+            "macro_count": int(ind.macro_count),
+            "lineage_operator": str(getattr(ind, "lineage_operator", "")),
+            "parent_uid": int(getattr(ind, "parent_uid", -1)),
+            "parent_smiles": str(getattr(ind, "parent_smiles", "")),
+            "parent_score": float(getattr(ind, "parent_score", float("nan"))),
+            "parent2_uid": int(getattr(ind, "parent2_uid", -1)),
+            "parent2_smiles": str(getattr(ind, "parent2_smiles", "")),
+            "parent2_score": float(getattr(ind, "parent2_score", float("nan"))),
+            "parent3_uid": int(getattr(ind, "parent3_uid", -1)),
+            "parent3_smiles": str(getattr(ind, "parent3_smiles", "")),
+            "parent3_score": float(getattr(ind, "parent3_score", float("nan"))),
+        }
+
+    def record_lineage(ind: SpectralIndividual, generation: int) -> None:
+        molecule_lineage_rows.append(lineage_row(ind, generation))
+        prev = lineage_by_smiles.get(ind.smiles)
+        if prev is None or float(ind.score) > float(getattr(prev, "score", float("nan"))):
+            lineage_by_smiles[ind.smiles] = ind
 
     init_population = generator.build_initial_population(seed_pool, pop_size)
     if not init_population:
@@ -1562,8 +1731,10 @@ def evolve_spectral_on_task(
 
     for ind, sc in zip(init_batch, init_scores.tolist()):
         ind.score = float(sc)
+        apply_lineage(ind, 0, lineage_spec(str(ind.decode_reason or "INITIAL")))
         archive[ind.smiles] = max(archive.get(ind.smiles, -1e18), float(sc))
         molecule_score_rows.append({"generation": 0, "smiles": ind.smiles, "score": float(sc)})
+        record_lineage(ind, 0)
 
     population = init_batch
     evaluated = len(init_batch)
@@ -1605,6 +1776,8 @@ def evolve_spectral_on_task(
                 continue
             enc.score = float(ind.score)
             enc.macro_count = int(ind.macro_count)
+            copy_lineage_fields(enc, ind)
+            enc.decode_reason = f"{ind.decode_reason}:VOCAB_REENCODED"
             reencoded.append(enc)
             count += 1
         return reencoded, count
@@ -1659,7 +1832,7 @@ def evolve_spectral_on_task(
             )
 
         offspring: list[SpectralIndividual] = []
-        theta_candidate_groups: list[tuple[np.ndarray, list[tuple[str, str, int]]]] = []
+        theta_candidate_groups: list[list[SpectralIndividual]] = []
         seen_for_decode = set(archive.keys())
         attempts = 0
         max_attempts = this_batch * cfg.OFFSPRING_ATTEMPT_FACTOR
@@ -1687,7 +1860,11 @@ def evolve_spectral_on_task(
         def offspring_slot_count() -> int:
             return len(offspring) + len(theta_candidate_groups)
 
-        def add_encoded_smiles_candidate(raw_smiles: str | None, reason: str) -> bool:
+        def add_encoded_smiles_candidate(
+            raw_smiles: str | None,
+            reason: str,
+            lineage: dict[str, Any] | None = None,
+        ) -> bool:
             nonlocal phenotype_encoded_count
             if not raw_smiles:
                 return False
@@ -1697,16 +1874,21 @@ def evolve_spectral_on_task(
             ind = generator.encode_smiles_to_individual(canon, decode_reason=reason)
             if ind is None or ind.smiles in seen_for_decode:
                 return False
+            apply_lineage(ind, gen, lineage or lineage_spec(reason))
             seen_for_decode.add(ind.smiles)
             offspring.append(ind)
             phenotype_encoded_count += 1
             return True
 
-        def add_theta_decoded_candidate(child_theta: np.ndarray) -> bool:
+        def add_theta_decoded_candidate(
+            child_theta: np.ndarray,
+            lineage: dict[str, Any] | None = None,
+        ) -> bool:
             nonlocal theta_decode_count
+            child_lineage = lineage or lineage_spec("theta_decode")
             if effective_task_decode_candidates > 1:
                 local_seen = set(seen_for_decode)
-                candidates: list[tuple[str, str, int]] = []
+                candidates: list[SpectralIndividual] = []
                 for _ in range(effective_task_decode_candidates):
                     smiles, reason, macro_count = generator.decode_theta(
                         child_theta,
@@ -1722,12 +1904,19 @@ def evolve_spectral_on_task(
                         decode_failures["DUPLICATE_NOVELTY"] = decode_failures.get("DUPLICATE_NOVELTY", 0) + 1
                         continue
                     local_seen.add(smiles)
-                    candidates.append((smiles, reason, int(macro_count)))
+                    ind = SpectralIndividual(
+                        theta=np.asarray(child_theta, dtype=np.float64),
+                        smiles=smiles,
+                        decode_reason=reason,
+                        macro_count=int(macro_count),
+                    )
+                    apply_lineage(ind, gen, child_lineage)
+                    candidates.append(ind)
                 if not candidates:
                     return False
-                for smiles, _reason, _macro_count in candidates:
-                    seen_for_decode.add(smiles)
-                theta_candidate_groups.append((child_theta, candidates))
+                for ind in candidates:
+                    seen_for_decode.add(ind.smiles)
+                theta_candidate_groups.append(candidates)
                 theta_decode_count += 1
                 return True
 
@@ -1742,27 +1931,28 @@ def evolve_spectral_on_task(
                 decode_failures[reason] = decode_failures.get(reason, 0) + 1
                 return False
             seen_for_decode.add(smiles)
-            offspring.append(
-                SpectralIndividual(
-                    theta=child_theta,
-                    smiles=smiles,
-                    decode_reason=reason,
-                    macro_count=macro_count,
-                )
+            ind = SpectralIndividual(
+                theta=child_theta,
+                smiles=smiles,
+                decode_reason=reason,
+                macro_count=macro_count,
             )
+            apply_lineage(ind, gen, child_lineage)
+            offspring.append(ind)
             theta_decode_count += 1
             return True
 
-        def propose_recombined_child(selected: Sequence[SpectralIndividual]) -> np.ndarray:
+        def propose_recombined_child(selected: Sequence[SpectralIndividual]) -> tuple[np.ndarray, dict[str, Any]]:
             if len(selected) <= 1:
                 theta_recombination_counts["mutate_only"] = theta_recombination_counts.get("mutate_only", 0) + 1
-                return generator.propose_child(
+                child, left, right, operator = generator.propose_child_with_lineage(
                     selected,
                     gen=gen,
                     generations=generations_for_mutation,
                     crossover_probability=theta_crossover_probability,
                     mutation_depth=mutation_depth,
                 )
+                return child, lineage_spec(operator, parent=left, parent2=right)
 
             roll = rng.random()
             if len(parent_pool) >= 3 and roll < theta_differential_fraction:
@@ -1777,11 +1967,17 @@ def evolve_spectral_on_task(
                     scale=theta_differential_scale,
                 )
                 theta_recombination_counts["differential"] = theta_recombination_counts.get("differential", 0) + 1
-                return generator.mutate_repeated(
+                child = generator.mutate_repeated(
                     child,
                     gen=gen,
                     generations=generations_for_mutation,
                     depth=mutation_depth,
+                )
+                return child, lineage_spec(
+                    "theta_differential_mutation",
+                    parent=de_parents[0],
+                    parent2=de_parents[1],
+                    parent3=de_parents[2],
                 )
 
             if roll < (theta_differential_fraction + theta_blend_crossover_fraction):
@@ -1791,27 +1987,30 @@ def evolve_spectral_on_task(
                     alpha=rng.random(),
                 )
                 theta_recombination_counts["blend"] = theta_recombination_counts.get("blend", 0) + 1
-                return generator.mutate_repeated(
+                child = generator.mutate_repeated(
                     child,
                     gen=gen,
                     generations=generations_for_mutation,
                     depth=mutation_depth,
                 )
+                return child, lineage_spec("theta_blend_crossover_mutation", parent=selected[0], parent2=selected[1])
 
             theta_recombination_counts["row"] = theta_recombination_counts.get("row", 0) + 1
-            return generator.propose_child(
+            child, left, right, operator = generator.propose_child_with_lineage(
                 selected,
                 gen=gen,
                 generations=generations_for_mutation,
                 crossover_probability=theta_crossover_probability,
                 mutation_depth=mutation_depth,
             )
+            return child, lineage_spec(operator, parent=left, parent2=right)
 
         while offspring_slot_count() < this_batch and attempts < max_attempts:
             attempts += 1
             if use_phenotype_proposals and rng.random() < spectral_phenotype_fraction:
                 candidate_smiles: str | None = None
                 reason = "PHENOTYPE_MUTATION_ENCODED"
+                candidate_lineage = lineage_spec(reason)
 
                 if offspring_slot_count() < immigrant_target or not parent_pool:
                     parent_smiles = rng.choice(seed_pool)
@@ -1821,6 +2020,7 @@ def evolve_spectral_on_task(
                         max_steps=immigrant_mutation_steps,
                     ) or parent_smiles
                     reason = "PHENOTYPE_IMMIGRANT_ENCODED"
+                    candidate_lineage = lineage_spec(reason, parent_smiles=parent_smiles)
                 else:
                     roll = rng.random()
                     parent = tournament_select_individual(parent_pool, effective_tournament_k, rng)
@@ -1842,6 +2042,7 @@ def evolve_spectral_on_task(
                             extra_fragment_pool=seed_fragment_pool,
                         )
                         reason = "PHENOTYPE_BRICS_CROSSOVER_ENCODED"
+                        candidate_lineage = lineage_spec(reason, parent=parent, parent2=mate)
                     elif (
                         seed_fragment_pool
                         and roll < (spectral_brics_crossover_fraction + spectral_brics_fragment_replace_fraction)
@@ -1855,6 +2056,7 @@ def evolve_spectral_on_task(
                             max_trials=3,
                         )
                         reason = "PHENOTYPE_BRICS_FRAGMENT_ENCODED"
+                        candidate_lineage = lineage_spec(reason, parent=parent)
                     else:
                         candidate_smiles = mutate_smiles(
                             parent.smiles,
@@ -1862,8 +2064,9 @@ def evolve_spectral_on_task(
                             max_steps=phenotype_mutation_steps,
                         )
                         reason = "PHENOTYPE_MUTATION_ENCODED"
+                        candidate_lineage = lineage_spec(reason, parent=parent)
 
-                if add_encoded_smiles_candidate(candidate_smiles, reason):
+                if add_encoded_smiles_candidate(candidate_smiles, reason, candidate_lineage):
                     if reason == "PHENOTYPE_BRICS_CROSSOVER_ENCODED":
                         brics_crossover_count += 1
                     elif reason == "PHENOTYPE_BRICS_FRAGMENT_ENCODED":
@@ -1879,6 +2082,7 @@ def evolve_spectral_on_task(
                     generations=generations_for_mutation,
                     depth=mutation_depth,
                 )
+                child_lineage = lineage_spec("theta_random")
             elif offspring_slot_count() < immigrant_target:
                 target_theta = None
                 if theta_target_analog_fraction > 0.0 and rng.random() < theta_target_analog_fraction:
@@ -1891,6 +2095,7 @@ def evolve_spectral_on_task(
                         depth=min(mutation_step_cap, theta_target_analog_mutation_steps),
                         sigma_scale=theta_target_analog_sigma_scale,
                     )
+                    child_lineage = lineage_spec("theta_target_analog")
                     if theta_token_mutation_fraction > 0.0 and rng.random() < theta_token_mutation_fraction:
                         child_theta = generator.mutate_token_neighborhood(
                             child_theta,
@@ -1900,6 +2105,7 @@ def evolve_spectral_on_task(
                             macro_insert_probability=theta_token_macro_insert_probability,
                             blend=theta_token_mutation_blend,
                         )
+                        child_lineage["operator"] = "theta_target_analog_token_neighborhood"
                         theta_token_mutation_count += 1
                 elif seed_theta_pairs:
                     parent_theta, _seed_smiles = seed_theta_pairs[attempts % len(seed_theta_pairs)]
@@ -1909,6 +2115,7 @@ def evolve_spectral_on_task(
                         generations=generations_for_mutation,
                         depth=mutation_depth,
                     )
+                    child_lineage = lineage_spec("theta_seed_immigrant", parent_smiles=_seed_smiles)
                 else:
                     child_theta = generator.mutate_repeated(
                         generator.random_theta(),
@@ -1916,6 +2123,7 @@ def evolve_spectral_on_task(
                         generations=generations_for_mutation,
                         depth=mutation_depth,
                     )
+                    child_lineage = lineage_spec("theta_random_immigrant")
             elif offspring_slot_count() < (immigrant_target + local_search_target):
                 top_count = max(1, min(len(parent_pool), int(math.ceil(len(parent_pool) * theta_local_top_fraction))))
                 local_pool = parent_pool[:top_count]
@@ -1936,6 +2144,7 @@ def evolve_spectral_on_task(
                     local_scale_idx % len(theta_local_mutation_step_schedule)
                 ]
                 base_theta = parent.theta
+                child_lineage = lineage_spec("theta_local_mutation", parent=parent)
                 if theta_token_mutation_fraction > 0.0 and rng.random() < theta_token_mutation_fraction:
                     base_theta = generator.mutate_token_neighborhood(
                         base_theta,
@@ -1945,6 +2154,7 @@ def evolve_spectral_on_task(
                         macro_insert_probability=theta_token_macro_insert_probability,
                         blend=theta_token_mutation_blend,
                     )
+                    child_lineage["operator"] = "theta_local_token_neighborhood_mutation"
                     theta_token_mutation_count += 1
                 child_theta = generator.mutate_repeated(
                     base_theta,
@@ -1963,7 +2173,7 @@ def evolve_spectral_on_task(
                     tournament_select_individual(parent_pool, effective_tournament_k, rng)
                     for _ in range(2 if len(parent_pool) > 1 else 1)
                 ]
-                child_theta = propose_recombined_child(selected)
+                child_theta, child_lineage = propose_recombined_child(selected)
                 if theta_child_token_mutation_fraction > 0.0 and rng.random() < theta_child_token_mutation_fraction:
                     child_theta = generator.mutate_token_neighborhood(
                         child_theta,
@@ -1973,9 +2183,10 @@ def evolve_spectral_on_task(
                         macro_insert_probability=theta_token_macro_insert_probability,
                         blend=theta_token_mutation_blend,
                     )
+                    child_lineage["operator"] = f"{child_lineage.get('operator', 'theta_child')}_token_neighborhood"
                     theta_token_mutation_count += 1
 
-            add_theta_decoded_candidate(child_theta)
+            add_theta_decoded_candidate(child_theta, child_lineage)
 
         fill_attempts = 0
         while offspring_slot_count() < this_batch and fill_attempts < this_batch * 20:
@@ -1985,6 +2196,7 @@ def evolve_spectral_on_task(
                 if add_encoded_smiles_candidate(
                     mutate_smiles(parent.smiles, rng, max_steps=phenotype_mutation_steps),
                     "PHENOTYPE_FILL_ENCODED",
+                    lineage_spec("PHENOTYPE_FILL_ENCODED", parent=parent),
                 ):
                     graph_mutation_count += 1
                     continue
@@ -1993,7 +2205,7 @@ def evolve_spectral_on_task(
                     tournament_select_individual(parent_pool, effective_tournament_k, rng)
                     for _ in range(2 if len(parent_pool) > 1 else 1)
                 ]
-                child_theta = propose_recombined_child(selected)
+                child_theta, child_lineage = propose_recombined_child(selected)
                 if theta_child_token_mutation_fraction > 0.0 and rng.random() < theta_child_token_mutation_fraction:
                     child_theta = generator.mutate_token_neighborhood(
                         child_theta,
@@ -2003,6 +2215,7 @@ def evolve_spectral_on_task(
                         macro_insert_probability=theta_token_macro_insert_probability,
                         blend=theta_token_mutation_blend,
                     )
+                    child_lineage["operator"] = f"{child_lineage.get('operator', 'theta_child')}_token_neighborhood"
                     theta_token_mutation_count += 1
             else:
                 child_theta = generator.mutate_repeated(
@@ -2011,56 +2224,51 @@ def evolve_spectral_on_task(
                     generations=generations_for_mutation,
                     depth=mutation_depth,
                 )
-            add_theta_decoded_candidate(child_theta)
+                child_lineage = lineage_spec("theta_random_fill")
+            add_theta_decoded_candidate(child_theta, child_lineage)
 
         if offspring_slot_count() < this_batch:
             fillers = prev_ranked or population
             while offspring_slot_count() < this_batch and fillers:
                 base = rng.choice(fillers)
-                offspring.append(
-                    SpectralIndividual(
-                        theta=base.theta.copy(),
-                        smiles=base.smiles,
-                        decode_reason="DUPLICATE_FILL",
-                        macro_count=base.macro_count,
-                    )
+                fill = SpectralIndividual(
+                    theta=base.theta.copy(),
+                    smiles=base.smiles,
+                    decode_reason="DUPLICATE_FILL",
+                    macro_count=base.macro_count,
                 )
+                apply_lineage(fill, gen, lineage_spec("DUPLICATE_FILL", parent=base))
+                offspring.append(fill)
 
         if theta_candidate_groups:
             candidate_smiles: list[str] = []
-            candidate_meta: list[tuple[int, np.ndarray, str, str, int]] = []
-            for group_idx, (theta, candidates) in enumerate(theta_candidate_groups):
-                for smiles, reason, macro_count in candidates:
-                    candidate_meta.append((group_idx, theta, smiles, reason, int(macro_count)))
-                    candidate_smiles.append(smiles)
+            candidate_meta: list[tuple[int, SpectralIndividual]] = []
+            for group_idx, candidates in enumerate(theta_candidate_groups):
+                for ind in candidates:
+                    candidate_meta.append((group_idx, ind))
+                    candidate_smiles.append(ind.smiles)
 
             candidate_scores = score_task_batch(ms_task, candidate_smiles, step=gen, score_method=score_method)
             task_decode_scored_candidates += int(len(candidate_smiles))
             evaluated += int(len(candidate_smiles))
 
-            best_by_group: dict[int, tuple[float, np.ndarray, str, str, int]] = {}
-            for (group_idx, theta, smiles, reason, macro_count), sc in zip(candidate_meta, candidate_scores.tolist()):
+            best_by_group: dict[int, SpectralIndividual] = {}
+            for (group_idx, ind), sc in zip(candidate_meta, candidate_scores.tolist()):
                 score = float(sc)
-                archive[smiles] = max(archive.get(smiles, -1e18), score)
-                molecule_score_rows.append({"generation": gen, "smiles": smiles, "score": score})
+                ind.score = score
+                archive[ind.smiles] = max(archive.get(ind.smiles, -1e18), score)
+                molecule_score_rows.append({"generation": gen, "smiles": ind.smiles, "score": score})
+                record_lineage(ind, gen)
                 cur = best_by_group.get(group_idx)
-                if cur is None or score > cur[0]:
-                    best_by_group[group_idx] = (score, theta, smiles, reason, int(macro_count))
+                if cur is None or score > float(cur.score):
+                    best_by_group[group_idx] = ind
 
             for group_idx in range(len(theta_candidate_groups)):
-                best = best_by_group.get(group_idx)
-                if best is None:
+                best_ind = best_by_group.get(group_idx)
+                if best_ind is None:
                     continue
-                score, theta, smiles, reason, macro_count = best
-                offspring.append(
-                    SpectralIndividual(
-                        theta=np.asarray(theta, dtype=np.float64),
-                        smiles=smiles,
-                        score=float(score),
-                        decode_reason=f"{reason}:TASK_AWARE_BEST_OF_{effective_task_decode_candidates}",
-                        macro_count=int(macro_count),
-                    )
-                )
+                best_ind.decode_reason = f"{best_ind.decode_reason}:TASK_AWARE_BEST_OF_{effective_task_decode_candidates}"
+                offspring.append(best_ind)
 
         unscored_indices = [idx for idx, ind in enumerate(offspring) if math.isnan(float(ind.score))]
         if unscored_indices:
@@ -2074,6 +2282,7 @@ def evolve_spectral_on_task(
                 ind.score = score
                 archive[ind.smiles] = max(archive.get(ind.smiles, -1e18), score)
                 molecule_score_rows.append({"generation": gen, "smiles": ind.smiles, "score": score})
+                record_lineage(ind, gen)
 
         off_scores = np.asarray([float(ind.score) for ind in offspring], dtype=np.float64)
 
@@ -2260,8 +2469,25 @@ def evolve_spectral_on_task(
         {"smiles": s, "score": sc}
         for s, sc in sorted(archive.items(), key=lambda kv: kv[1], reverse=True)[: cfg.TOP_MOLECULES_TO_SAVE]
     ]
+    top_lineage_rows: list[dict[str, Any]] = []
+    for top in top_rows:
+        smiles = str(top["smiles"])
+        score = float(top["score"])
+        ind = lineage_by_smiles.get(smiles)
+        if ind is None:
+            ind = SpectralIndividual(
+                theta=np.empty((0, 0), dtype=np.float64),
+                smiles=smiles,
+                score=score,
+                decode_reason="ARCHIVE_ONLY",
+            )
+            apply_lineage(ind, 0, lineage_spec("ARCHIVE_ONLY"))
+        ind.score = score
+        top_lineage_rows.append(lineage_row(ind, int(getattr(ind, "birth_generation", 0))))
     write_csv(run_dir / "generator_top_molecules.csv", top_rows, ["smiles", "score"])
+    write_csv(run_dir / "generator_top_molecules_lineage.csv", top_lineage_rows, lineage_fields)
     write_tsv(run_dir / "molecule_scores_by_generation.tsv", molecule_score_rows, ["generation", "smiles", "score"])
+    write_tsv(run_dir / "molecule_lineage_by_generation.tsv", molecule_lineage_rows, lineage_fields)
     write_tsv(
         run_dir / "best_score_per_generation.tsv",
         best_score_rows,
