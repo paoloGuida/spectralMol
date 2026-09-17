@@ -3,7 +3,7 @@
 SpectralMol evolves a Fourier theta representation and decodes it into
 molecules for molecular optimization benchmarks. This repository includes the
 open-source code path used for the final GuacaMol and SATURN reproductions, plus
-small IBEX launch helpers for custom test cases.
+portable local and optional Slurm launchers for custom test cases.
 
 ## What Evolves
 
@@ -11,28 +11,30 @@ For the benchmark reproduction scripts, the evolved genotype is theta. The
 provided launchers disable phenotype proposals and BRICS-based genotype changes
 so that the optimization path remains theta-only.
 
-## Quick Start On IBEX
+## Quick Start
 
-Dry-run a custom GuacaMol-style optimization:
-
-```bash
-cd /home/$USER/molevoDrugDiscovery_2/SpectralMol
-CONFIG_FILE=examples/custom_guacamol.env bash run_custom_spectralmol_ibex.sh
-```
-
-Dry-run a custom SATURN-style optimization:
+Create the environment and activate it:
 
 ```bash
-cd /home/$USER/molevoDrugDiscovery_2/SpectralMol
-CONFIG_FILE=examples/custom_saturn.env bash run_custom_spectralmol_ibex.sh
+conda env create -f spectralMol/environment.yml
+conda activate spectralmol
 ```
 
-The wrapper prints the exact `sbatch` command by default. Submit the job by
-adding `SUBMIT=1`:
+Run a custom GuacaMol-style optimization locally:
 
 ```bash
-CONFIG_FILE=examples/custom_guacamol.env SUBMIT=1 bash run_custom_spectralmol_ibex.sh
+CONFIG_FILE=examples/custom_guacamol.env bash run_custom_spectralmol.sh
 ```
+
+Run a custom SATURN-style optimization locally after installing the external
+docking dependencies described below:
+
+```bash
+CONFIG_FILE=examples/custom_saturn.env bash run_custom_spectralmol.sh
+```
+
+Local execution is the default. On a system with Slurm, set
+`EXECUTION_BACKEND=slurm SUBMIT=1` to submit the same configuration.
 
 ## Reproduce The Final Benchmarks
 
@@ -53,24 +55,24 @@ The final GuacaMol and SATURN settings are pinned in:
 reproducibility_backups/unified_guacamol_saturn_20260817/settings/final_benchmark_profiles.env
 ```
 
-Verify the existing completed result roots:
+Validate the bundled code, inputs, checksums, and manuscript results:
 
 ```bash
-bash run_reproducibility_profile_ibex.sh all verify
+bash run_reproducibility_profile.sh all verify
 ```
 
-Submit fresh reproduction jobs:
+Start fresh reproduction runs locally:
 
 ```bash
-bash run_reproducibility_profile_ibex.sh guacamol_mpo_v3 run
-bash run_reproducibility_profile_ibex.sh saturn_table8_v119 run
+bash run_reproducibility_profile.sh guacamol_mpo_v3 run
+bash run_reproducibility_profile.sh saturn_table8_v119 run
 ```
 
-Analyze existing final outputs without submitting jobs:
+Print the bundled final result summaries without running jobs:
 
 ```bash
-bash run_reproducibility_profile_ibex.sh guacamol_mpo_v3 analyze
-bash run_reproducibility_profile_ibex.sh saturn_table8_v119 analyze
+bash run_reproducibility_profile.sh guacamol_mpo_v3 analyze
+bash run_reproducibility_profile.sh saturn_table8_v119 analyze
 ```
 
 ## Custom GuacaMol Cases
@@ -101,16 +103,18 @@ Use `examples/custom_saturn.env` as a starting point. Common edits are:
 - `PER_SEED_SEED_SMILES_DIR=/path/to/seed_files` for files named
   `seed_0.smi`, `seed_1.smi`, and so on.
 
-SATURN runs require a GPU node, OpenBabel, QuickVina2-GPU, and a working NVIDIA
-OpenCL stack. The IBEX defaults in `sbatch_saturn_theta_nsga2_ibex.sh` match the
-environment used for the final Table 8 reproduction.
+SATURN runs require an NVIDIA GPU, OpenBabel, QuickVina2-GPU, and a working
+OpenCL stack. Configure their locations in `examples/custom_saturn.env`; no
+site-specific filesystem layout or scheduler is required.
 
 ## Main Files
 
-- `run_custom_spectralmol_ibex.sh`: dry-run or submit custom GuacaMol/SATURN
-  jobs on IBEX.
-- `run_reproducibility_profile_ibex.sh`: run or analyze the two final
+- `run_custom_spectralmol.sh`: run custom GuacaMol/SATURN jobs locally or
+  submit them to Slurm.
+- `run_reproducibility_profile.sh`: run or analyze the two final
   reproducibility profiles.
+- `run_frequency_ablation.sh`: run the manuscript frequency ablation locally
+  or submit it to Slurm.
 - `examples/custom_guacamol.env`: editable GuacaMol custom-run settings.
 - `examples/custom_saturn.env`: editable SATURN custom-run settings.
 - `reproducibility/manuscript_2026/`: exact inputs, compact outputs, provenance,

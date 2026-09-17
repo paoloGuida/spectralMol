@@ -1,4 +1,4 @@
-Using output root: /ibex/scratch/colleoe/spectralMol/guacamol_10seed_spectralmol_graphga_mpo_v3_stats
+Using output root: PORTABLE_OUTPUT_ROOT/guacamol_10seed_spectralmol_graphga_mpo_v3_stats
 Seeds: 7,8,9,10,11,12,13,14,15,16
 
 Per-seed aggregate scores:

@@ -65,21 +65,16 @@ export GRAPHGA_N_JOBS="${GRAPHGA_N_JOBS:-${SLURM_CPUS_PER_TASK:-1}}"
 export GRAPHGA_PATIENCE="${GRAPHGA_PATIENCE:-500}"
 export SPECTRAL_TASK_PROFILE_MODE="${SPECTRAL_TASK_PROFILE_MODE:-auto}"
 
-OUTPUT_ROOT="${OUTPUT_ROOT:-${OUTPUT_BASE_DIR:-/ibex/scratch/${USER_NAME}/spectralMol/guacamol_10seed_spectralmol_graphga_stats}}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${OUTPUT_BASE_DIR:-${SCRIPT_DIR}/reproducibility_runs/guacamol_10seed_spectralmol_graphga_stats}}"
 export OUTPUT_ROOT
 export OUTPUT_BASE_DIR="${OUTPUT_ROOT}/seed_${SEED}"
 
-if [[ -z "${EXAMPLES_ROOT:-}" ]]; then
-  if [[ -d "/home/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples" ]]; then
-    export EXAMPLES_ROOT="/home/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples"
-  fi
+if [[ -z "${EXAMPLES_ROOT:-}" && -d "${SCRIPT_DIR}/../MolScore_examples" ]]; then
+  export EXAMPLES_ROOT="${SCRIPT_DIR}/../MolScore_examples"
 fi
 
 if [[ -z "${SEED_SMILES_FILE:-}" ]]; then
-  candidate="/ibex/scratch/${USER_NAME}/spectralMol/guacamol_graphga_vs_spectralmol/compare_GuacaMol_20260710_155012/shared_initial_population/seed_7.smi"
-  if [[ -f "${candidate}" ]]; then
-    export SEED_SMILES_FILE="${candidate}"
-  fi
+  export SEED_SMILES_FILE="${SCRIPT_DIR}/reproducibility/manuscript_2026/inputs/guacamol/shared_initial_population_seed_7.smi"
 fi
 
 if [[ -z "${SEED_SMILES_FILE:-}" || ! -f "${SEED_SMILES_FILE}" ]]; then
@@ -136,4 +131,4 @@ echo "[10seed] examples_root=${EXAMPLES_ROOT:-<unset>}"
 echo "[10seed] generations=${GENERATIONS} population=${POPULATION_SIZE} batch=${BATCH_SIZE} budget=${BUDGET}"
 
 export SLURM_ARRAY_TASK_ID="${TASK_INDEX}"
-exec bash "${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_ibex.sh"
+exec bash "${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_slurm.sh"

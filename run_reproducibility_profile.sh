@@ -10,11 +10,11 @@ usage() {
 Run or analyze pinned reproducibility profiles.
 
 Usage:
-  bash run_reproducibility_profile_ibex.sh all verify
-  bash run_reproducibility_profile_ibex.sh guacamol_mpo_v3 run
-  bash run_reproducibility_profile_ibex.sh guacamol_mpo_v3 analyze
-  bash run_reproducibility_profile_ibex.sh saturn_table8_v119 run
-  bash run_reproducibility_profile_ibex.sh saturn_table8_v119 analyze
+  bash run_reproducibility_profile.sh all verify
+  bash run_reproducibility_profile.sh guacamol_mpo_v3 run
+  bash run_reproducibility_profile.sh guacamol_mpo_v3 analyze
+  bash run_reproducibility_profile.sh saturn_table8_v119 run
+  bash run_reproducibility_profile.sh saturn_table8_v119 analyze
 EOF
 }
 
@@ -30,19 +30,19 @@ fi
 
 case "${PROFILE}:${ACTION}" in
   all:verify|all:analyze)
-    exec bash "${ROOT}/commands/verify_existing_results_ibex.sh"
+    exec bash "${ROOT}/commands/verify_bundled_results.sh"
     ;;
   guacamol_mpo_v3:run)
-    exec bash "${ROOT}/commands/run_guacamol_mpo_v3_ibex.sh"
+    exec bash "${ROOT}/commands/run_guacamol_mpo_v3.sh"
     ;;
   guacamol_mpo_v3:verify|guacamol_mpo_v3:analyze)
-    exec bash "${ROOT}/commands/aggregate_guacamol_mpo_v3_existing_ibex.sh"
+    exec bash "${ROOT}/commands/aggregate_guacamol_mpo_v3.sh"
     ;;
   saturn_table8_v119:run)
-    exec bash "${ROOT}/commands/run_saturn_table8_v119_ibex.sh"
+    exec bash "${ROOT}/commands/run_saturn_table8_v119.sh"
     ;;
   saturn_table8_v119:verify|saturn_table8_v119:analyze)
-    exec bash "${ROOT}/commands/analyze_saturn_table8_v119_existing_ibex.sh"
+    exec bash "${ROOT}/commands/analyze_saturn_table8_v119.sh"
     ;;
   *)
     echo "[repro] unsupported profile/action: ${PROFILE}/${ACTION}" >&2

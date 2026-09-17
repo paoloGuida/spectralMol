@@ -6,8 +6,8 @@ This run repeats the GuacaMol frequency ablation using explicit parent-lineage l
 
 ## Run
 
-- IBEX job ID: `50835722`
-- Raw output root: `/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_lineage_20260825_094359`
+- COMPUTE_CLUSTER job ID: `50835722`
+- Raw output root: `PORTABLE_OUTPUT_ROOT/guacamol_frequency_ablation_lineage_20260825_094359`
 - Conditions: `full-spectrum`, `high-only`, `low-only`, `random-matrix`
 - Seeds: `0,1,2,3,4,5`
 - Tasks: GuacaMol task indexes `0-19`

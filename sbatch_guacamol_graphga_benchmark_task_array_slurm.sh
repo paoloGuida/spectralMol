@@ -13,7 +13,7 @@ set -euo pipefail
 
 # Fair GraphGA benchmark for the final SpectralMol theta run.
 #
-# Reuses sbatch_guacamol_spectralmol_task_array_ibex.sh only as a task/budget
+# Reuses sbatch_guacamol_spectralmol_task_array_slurm.sh only as a task/budget
 # launcher. MODELS=graphga ensures SpectralMol is not run.
 # Fairness knobs:
 #   - same 20 GuacaMol task indexes
@@ -40,14 +40,11 @@ export GRAPHGA_N_JOBS="${GRAPHGA_N_JOBS:-${SLURM_CPUS_PER_TASK:-1}}"
 export GRAPHGA_PATIENCE="${GRAPHGA_PATIENCE:-500}"
 
 if [[ -z "${OUTPUT_BASE_DIR:-}" ]]; then
-  export OUTPUT_BASE_DIR="/ibex/scratch/${USER_NAME}/spectralMol/guacamol_graphga_seed7_fair_targetfull_budget"
+  export OUTPUT_BASE_DIR="${SCRIPT_DIR}/reproducibility_runs/guacamol_graphga_seed7"
 fi
 
 if [[ -z "${SEED_SMILES_FILE:-}" ]]; then
-  candidate="/ibex/scratch/${USER_NAME}/spectralMol/guacamol_graphga_vs_spectralmol/compare_GuacaMol_20260710_155012/shared_initial_population/seed_7.smi"
-  if [[ -f "${candidate}" ]]; then
-    export SEED_SMILES_FILE="${candidate}"
-  fi
+  export SEED_SMILES_FILE="${SCRIPT_DIR}/reproducibility/manuscript_2026/inputs/guacamol/shared_initial_population_seed_7.smi"
 fi
 
 echo "[graphga-array] MODELS=${MODELS}"
@@ -61,4 +58,4 @@ echo "[graphga-array] SEED_SMILES_FILE=${SEED_SMILES_FILE:-<auto>}"
 echo "[graphga-array] OUTPUT_BASE_DIR=${OUTPUT_BASE_DIR}"
 echo "[graphga-array] SCRIPT_DIR=${SCRIPT_DIR}"
 
-exec bash "${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_ibex.sh"
+exec bash "${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_slurm.sh"

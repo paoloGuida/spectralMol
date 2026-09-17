@@ -87,25 +87,16 @@ export SPECTRAL_BRICS_CROSSOVER_FRACTION="${SPECTRAL_BRICS_CROSSOVER_FRACTION:-0
 export MOLSCORE_SPECTRAL_BRICS_FRAGMENT_REPLACE_FRACTION="${MOLSCORE_SPECTRAL_BRICS_FRAGMENT_REPLACE_FRACTION:-0}"
 export SPECTRAL_BRICS_FRAGMENT_REPLACE_FRACTION="${SPECTRAL_BRICS_FRAGMENT_REPLACE_FRACTION:-0}"
 
-OUTPUT_ROOT="${OUTPUT_ROOT:-/ibex/scratch/${USER_NAME}/spectralMol/guacamol_frequency_ablation_merged_20260824}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${SCRIPT_DIR}/reproducibility_runs/guacamol_frequency_ablation}"
 export OUTPUT_ROOT
 export OUTPUT_BASE_DIR="${OUTPUT_ROOT}/${FREQUENCY_CONDITION}/seed_${SEED}"
 
-if [[ -z "${EXAMPLES_ROOT:-}" && -d "/home/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples" ]]; then
-  export EXAMPLES_ROOT="/home/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples"
+if [[ -z "${EXAMPLES_ROOT:-}" && -d "${SCRIPT_DIR}/../MolScore_examples" ]]; then
+  export EXAMPLES_ROOT="${SCRIPT_DIR}/../MolScore_examples"
 fi
 
 if [[ -z "${SEED_SMILES_FILE:-}" ]]; then
-  for candidate in \
-    "/home/${USER_NAME}/ReinventCommunity/notebooks/data/chembl.filtered.smi" \
-    "/home/${USER_NAME}/molevoDrugDiscovery_2/MolScore_examples/GraphGA/ZINC_250k.smi" \
-    "/home/${USER_NAME}/molevoDrugDiscovery_2/Saturn/data/zinc250k/zinc250k.smi"
-  do
-    if [[ -f "${candidate}" ]]; then
-      export SEED_SMILES_FILE="${candidate}"
-      break
-    fi
-  done
+  export SEED_SMILES_FILE="${SCRIPT_DIR}/reproducibility/manuscript_2026/inputs/guacamol/chembl.filtered.smi"
 fi
 
 if [[ -z "${SEED_SMILES_FILE:-}" || ! -f "${SEED_SMILES_FILE}" ]]; then
@@ -127,8 +118,8 @@ batch_size	${BATCH_SIZE}
 seed_pool_size	${SEED_POOL_SIZE}
 seed_smiles_file	${SEED_SMILES_FILE}
 models	${MODELS}
-source_script	${SCRIPT_DIR}/sbatch_guacamol_frequency_ablation_ibex.sh
-delegated_script	${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_ibex.sh
+source_script	${SCRIPT_DIR}/sbatch_guacamol_frequency_ablation_slurm.sh
+delegated_script	${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_slurm.sh
 EOF
 
 echo "[ablation] array_id=${ARRAY_ID} condition_pos=${CONDITION_POS} condition=${FREQUENCY_CONDITION} seed_pos=${SEED_POS} seed=${SEED} task_index=${TASK_INDEX}"
@@ -138,4 +129,4 @@ echo "[ablation] seed_smiles_file=${SEED_SMILES_FILE}"
 echo "[ablation] budget=${BUDGET} generations=${GENERATIONS} population=${POPULATION_SIZE} batch=${BATCH_SIZE}"
 
 export SLURM_ARRAY_TASK_ID="${TASK_INDEX}"
-exec bash "${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_ibex.sh"
+exec bash "${SCRIPT_DIR}/sbatch_guacamol_spectralmol_task_array_slurm.sh"

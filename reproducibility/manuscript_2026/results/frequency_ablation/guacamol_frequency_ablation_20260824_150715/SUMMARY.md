@@ -1,7 +1,7 @@
 # GuacaMol Frequency-Mode Ablation
 
 Generated: 2026-08-24T12:59:42Z
-Input root: `/ibex/scratch/colleoe/spectralMol/guacamol_frequency_ablation_merged_20260824_150715`
+Input root: `PORTABLE_OUTPUT_ROOT/guacamol_frequency_ablation_merged_20260824_150715`
 
 ## Condition Summary
 
