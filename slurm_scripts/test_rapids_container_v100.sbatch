@@ -14,34 +14,29 @@
 set -euo pipefail
 
 REPO=${REPO:-/ibex/user/${USER}/molevoDrugDiscovery}
-RAPIDS_IMAGE=${RAPIDS_IMAGE:-docker.io/dxbarradas/spectralmol-rapids:wolfi-conda}
-PODMAN_ROOT=${PODMAN_ROOT:-/ibex/user/${USER}/podman_images}
 TEST_ROOT=${TEST_ROOT:-/ibex/user/${USER}/container-testing/rapids}
+TEST_SENTINEL=${TEST_SENTINEL:-.env_write_test}
+PYTHON_BIN=${PYTHON_BIN:-$PWD/env/bin/python}
 
-export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/${UID}}
-
-mkdir -p "${REPO}/logs" "${TEST_ROOT}/logs" "/run/user/${UID}/bus" "${PODMAN_ROOT}"
+mkdir -p "${REPO}/logs" "${TEST_ROOT}/logs"
 cd "${REPO}"
+PYTHON_BIN=${PYTHON_BIN:-$PWD/env/bin/python}
 
-if ! command -v podman >/dev/null 2>&1; then
-  echo "Podman is not available on PATH." >&2
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  echo "Python executable not found: ${PYTHON_BIN}" >&2
   exit 1
 fi
 
 echo "[preflight] nvidia-smi"
-podman --root="${PODMAN_ROOT}" pull "${RAPIDS_IMAGE}"
-podman --root="${PODMAN_ROOT}" run --rm \
-  -e NVIDIA_VISIBLE_DEVICES='' \
-  --device=nvidia.com/gpu=all \
-  --security-opt=label=disable \
-  "${RAPIDS_IMAGE}" nvidia-smi || true
+nvidia-smi || true
 
-echo "[smoke] RAPIDS import test"
-podman --root="${PODMAN_ROOT}" run --rm \
-  -e NVIDIA_VISIBLE_DEVICES='' \
-  --device=nvidia.com/gpu=all \
-  --security-opt=label=disable \
-  "${RAPIDS_IMAGE}" \
-  python -c "import rdkit; import dask; import cudf; import cuml; print('wolfi-conda-rapids-smoke-ok')"
+echo "[preflight] workspace mount write test"
+id
+touch "${REPO}/${TEST_SENTINEL}"
+ls -l "${REPO}/${TEST_SENTINEL}"
+rm -f "${REPO}/${TEST_SENTINEL}"
 
-echo "[done] RAPIDS container smoke validation complete"
+echo "[smoke] local env RAPIDS import test"
+"${PYTHON_BIN}" -c "import rdkit; import dask; import cudf; import cuml; print('local-conda-rapids-smoke-ok')"
+
+echo "[done] Local conda RAPIDS smoke validation complete"
