@@ -4,6 +4,21 @@
     "enabled": true,
     "description": "This repository's local evolution runner (evolve_vs_molscore_benchmark.py)."
   },
+  "local_evolution_low_only": {
+    "type": "builtin_local_evolution",
+    "enabled": true,
+    "description": "Local evolution ablation variant (low-only)."
+  },
+  "local_evolution_high_only": {
+    "type": "builtin_local_evolution",
+    "enabled": true,
+    "description": "Local evolution ablation variant (high-only)."
+  },
+  "local_evolution_random_matrix": {
+    "type": "builtin_local_evolution",
+    "enabled": true,
+    "description": "Local evolution ablation variant (random-matrix control)."
+  },
   "graphga_example": {
     "type": "command",
     "enabled": true,

@@ -40,6 +40,7 @@ DEFAULT_SATURN_REPO_ROOT: Path = (cfg.REPO_ROOT / "Saturn" / "saturn_repo2").res
 DEFAULT_SATURN_ORACLE_CONFIG: Path = (Path(__file__).resolve().parent / "saturn_oracle_config.example.json").resolve()
 _SCORE_ADAPTER_CACHE: dict[int, Callable[[list[str], int], object]] = {}
 _BRICS_FRAGMENT_CACHE: dict[tuple[str, int], tuple[str, ...]] = {}
+FOURIER_MODE_CHOICES = ("full-spectrum", "low-only", "high-only", "random-matrix")
 
 
 @dataclass
@@ -108,6 +109,15 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=int(getattr(cfg, "LOCAL_EVO_STAGNATION_MUTATION_BOOST", 2)),
         help="Extra mutation depth when stagnating.",
+    )
+    p.add_argument(
+        "--fourier-mode",
+        default="full-spectrum",
+        choices=FOURIER_MODE_CHOICES,
+        help=(
+            "Ablation condition label for evolution behavior. "
+            "In this active runner, modes are applied as operator-space proxies."
+        ),
     )
     p.add_argument("--seed", type=int, default=cfg.SEED_DEFAULT, help="Random seed.")
     p.add_argument(
@@ -862,6 +872,7 @@ def ensure_scores_csv(
 def evolve_on_task(
     ms_task,
     strategy: str,
+    fourier_mode: str,
     seed_pool: Sequence[str],
     budget: int,
     pop_size: int,
@@ -892,10 +903,38 @@ def evolve_on_task(
     parent_pool_fraction = clamp_float(parent_pool_fraction, 0.1, 1.0)
     stagnation_patience = max(0, int(stagnation_patience))
     stagnation_mutation_boost = max(0, int(stagnation_mutation_boost))
+    normalized_fourier_mode = str(fourier_mode).strip().lower()
+    if normalized_fourier_mode not in FOURIER_MODE_CHOICES:
+        raise ValueError(f"Unsupported --fourier-mode={fourier_mode!r}")
+
     mutation_step_cap = max(
         int(cfg.OFFSPRING_MUTATION_MAX_STEPS),
         int(getattr(cfg, "LOCAL_EVO_MUTATION_STEP_CAP", cfg.OFFSPRING_MUTATION_MAX_STEPS)),
     )
+    mode_mutation_floor = int(cfg.OFFSPRING_MUTATION_MAX_STEPS)
+    random_parent_selection = False
+
+    # NOTE: The active evolution path is SMILES-operator-based, not latent-Fourier-native.
+    # These presets provide practical ablation controls while preserving the current runner.
+    if strategy == "evolution":
+        if normalized_fourier_mode == "low-only":
+            immigrant_fraction = max(float(immigrant_fraction), 0.25)
+            parent_pool_fraction = 1.0
+            elite_fraction = min(float(elite_fraction), 0.10)
+            mode_mutation_floor = max(2, int(cfg.OFFSPRING_MUTATION_MAX_STEPS))
+        elif normalized_fourier_mode == "high-only":
+            immigrant_fraction = min(float(immigrant_fraction), 0.05)
+            parent_pool_fraction = min(float(parent_pool_fraction), 0.35)
+            elite_fraction = max(float(elite_fraction), 0.25)
+            mutation_step_cap = min(mutation_step_cap, 1)
+            mode_mutation_floor = 1
+        elif normalized_fourier_mode == "random-matrix":
+            immigrant_fraction = max(float(immigrant_fraction), 0.50)
+            parent_pool_fraction = 1.0
+            elite_fraction = 0.0
+            mode_mutation_floor = max(2, int(cfg.OFFSPRING_MUTATION_MAX_STEPS))
+            random_parent_selection = True
+
     crossover_fraction = clamp_float(float(getattr(cfg, "LOCAL_EVO_CROSSOVER_FRACTION", 0.0)), 0.0, 0.95)
     fragment_replace_fraction = clamp_float(float(getattr(cfg, "LOCAL_EVO_FRAGMENT_REPLACE_FRACTION", 0.0)), 0.0, 0.95)
     use_brics_operators = strategy == "evolution" and (crossover_fraction > 0.0 or fragment_replace_fraction > 0.0)
@@ -973,11 +1012,20 @@ def evolve_on_task(
         parent_population = population
         parent_scores = pop_scores
         effective_tournament_k = max(2, int(tournament_k))
-        mutation_steps = int(cfg.OFFSPRING_MUTATION_MAX_STEPS)
+        mutation_steps = min(
+            mutation_step_cap,
+            max(mode_mutation_floor, int(cfg.OFFSPRING_MUTATION_MAX_STEPS)),
+        )
         effective_parent_pool_fraction = parent_pool_fraction
         effective_immigrant_fraction = immigrant_fraction
         effective_elite_fraction = elite_fraction
         diversity_fraction = 0.10
+        if normalized_fourier_mode == "low-only":
+            diversity_fraction = 0.20
+        elif normalized_fourier_mode == "high-only":
+            diversity_fraction = 0.05
+        elif normalized_fourier_mode == "random-matrix":
+            diversity_fraction = 0.25
 
         if strategy == "evolution" and stagnation_patience > 0 and stagnation_count >= stagnation_patience:
             mutation_steps = min(mutation_step_cap, mutation_steps + stagnation_mutation_boost)
@@ -994,6 +1042,8 @@ def evolve_on_task(
             effective_immigrant_fraction = max(float(effective_immigrant_fraction), 0.40)
             effective_elite_fraction = min(float(effective_elite_fraction), 0.10)
             diversity_fraction = 0.30
+
+        mutation_steps = min(mutation_step_cap, max(mode_mutation_floor, mutation_steps))
 
         if strategy == "evolution" and parent_population:
             pool_size = max(2, int(round(len(parent_population) * effective_parent_pool_fraction)))
@@ -1042,8 +1092,12 @@ def evolve_on_task(
             and crossover_attempts < crossover_max_attempts
         ):
             crossover_attempts += 1
-            parent_a = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
-            parent_b = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
+            if random_parent_selection:
+                parent_a = rng.choice(parent_population)
+                parent_b = rng.choice(parent_population)
+            else:
+                parent_a = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
+                parent_b = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
             if parent_a == parent_b and len(parent_population) > 1:
                 parent_b = rng.choice(parent_population)
             child = crossover_brics_smiles(
@@ -1069,7 +1123,10 @@ def evolve_on_task(
             and fragment_attempts < fragment_max_attempts
         ):
             fragment_attempts += 1
-            parent = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
+            if random_parent_selection:
+                parent = rng.choice(parent_population)
+            else:
+                parent = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
             child = mutate_brics_fragment_replace(
                 parent,
                 rng,
@@ -1086,7 +1143,10 @@ def evolve_on_task(
         while len(offspring) < this_batch and attempts < max_attempts:
             attempts += 1
             if strategy == "evolution":
-                parent = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
+                if random_parent_selection:
+                    parent = rng.choice(parent_population)
+                else:
+                    parent = tournament_select(parent_population, parent_scores, effective_tournament_k, rng)
             else:
                 parent = rng.choice(seed_pool)
             child = mutate_smiles(parent, rng, max_steps=mutation_steps)
@@ -1144,7 +1204,10 @@ def evolve_on_task(
             for s, sc in zip(offspring, off_scores.tolist()):
                 combined[s] = max(combined.get(s, -1e18), float(sc))
             ranked = sorted(combined.items(), key=lambda kv: kv[1], reverse=True)
-            elite_count = max(1, min(pop_size, int(round(pop_size * effective_elite_fraction))))
+            if effective_elite_fraction <= 0:
+                elite_count = 0
+            else:
+                elite_count = max(1, min(pop_size, int(round(pop_size * effective_elite_fraction))))
             elites = ranked[:elite_count]
             tail = ranked[elite_count:]
             tail_for_band = tail
@@ -1230,6 +1293,7 @@ def evolve_on_task(
                 "effective_immigrant_fraction": effective_immigrant_fraction if strategy == "evolution" else 0.0,
                 "diversity_fraction": diversity_fraction if strategy == "evolution" else 0.0,
                 "mutation_steps": mutation_steps if strategy == "evolution" else int(cfg.OFFSPRING_MUTATION_MAX_STEPS),
+                "fourier_mode": normalized_fourier_mode,
                 "immigrant_offspring": immigrant_count,
                 "crossover_offspring": crossover_count,
                 "fragment_replace_offspring": fragment_replace_count,
@@ -1262,6 +1326,7 @@ def evolve_on_task(
             "effective_immigrant_fraction",
             "diversity_fraction",
             "mutation_steps",
+            "fourier_mode",
             "immigrant_offspring",
             "crossover_offspring",
             "fragment_replace_offspring",
@@ -1432,6 +1497,7 @@ def run_strategy(
     parent_pool_fraction: float,
     stagnation_patience: int,
     stagnation_mutation_boost: int,
+    fourier_mode: str,
     seed_pool: Sequence[str],
     seed: int,
 ) -> tuple[Path, pd.DataFrame]:
@@ -1461,6 +1527,7 @@ def run_strategy(
             "parent_pool_fraction": parent_pool_fraction,
             "stagnation_patience": stagnation_patience,
             "stagnation_mutation_boost": stagnation_mutation_boost,
+            "fourier_mode": fourier_mode,
             "seed": seed,
         },
         score_invalids=False,
@@ -1547,6 +1614,7 @@ def run_strategy(
                     parent_pool_fraction=parent_pool_fraction,
                     stagnation_patience=stagnation_patience,
                     stagnation_mutation_boost=stagnation_mutation_boost,
+                    fourier_mode=fourier_mode,
                     rng=rng,
                 )
                 task_elapsed = time.perf_counter() - task_t0
@@ -1602,6 +1670,7 @@ def run_strategy_saturn(
     parent_pool_fraction: float,
     stagnation_patience: int,
     stagnation_mutation_boost: int,
+    fourier_mode: str,
     seed_pool: Sequence[str],
     seed: int,
     saturn_repo_root: str,
@@ -1655,6 +1724,7 @@ def run_strategy_saturn(
         parent_pool_fraction=parent_pool_fraction,
         stagnation_patience=stagnation_patience,
         stagnation_mutation_boost=stagnation_mutation_boost,
+        fourier_mode=fourier_mode,
         rng=rng,
     )
     if hasattr(objective, "write_oracle_history"):
@@ -1766,6 +1836,7 @@ def main() -> int:
         "parent_pool_fraction": float(args.parent_pool_fraction),
         "stagnation_patience": int(args.stagnation_patience),
         "stagnation_mutation_boost": int(args.stagnation_mutation_boost),
+        "fourier_mode": str(args.fourier_mode),
         "seed": int(args.seed),
         "seed_smiles_file": str(seed_smiles_file),
         "seed_pool_size": len(seed_pool),
@@ -1782,6 +1853,11 @@ def main() -> int:
     (root / "run_meta.json").write_text(json.dumps(run_meta, indent=2), encoding="utf-8")
 
     print(f"Output root: {root}", flush=True)
+    if args.fourier_mode != "full-spectrum":
+        print(
+            f"[ablation] fourier-mode={args.fourier_mode} active (operator-space proxy in this runner)",
+            flush=True,
+        )
     
     # Phase 0: Time evolution strategy
     evo_start = time.perf_counter()
@@ -1804,6 +1880,7 @@ def main() -> int:
             parent_pool_fraction=args.parent_pool_fraction,
             stagnation_patience=args.stagnation_patience,
             stagnation_mutation_boost=args.stagnation_mutation_boost,
+            fourier_mode=args.fourier_mode,
             seed_pool=seed_pool,
             seed=args.seed,
         )
@@ -1821,6 +1898,7 @@ def main() -> int:
             parent_pool_fraction=args.parent_pool_fraction,
             stagnation_patience=args.stagnation_patience,
             stagnation_mutation_boost=args.stagnation_mutation_boost,
+            fourier_mode=args.fourier_mode,
             seed_pool=seed_pool,
             seed=args.seed,
             saturn_repo_root=str(saturn_repo_root),
@@ -1872,6 +1950,7 @@ def main() -> int:
             parent_pool_fraction=args.parent_pool_fraction,
             stagnation_patience=args.stagnation_patience,
             stagnation_mutation_boost=args.stagnation_mutation_boost,
+            fourier_mode=args.fourier_mode,
             seed_pool=seed_pool,
             seed=args.seed + 10000,
         )
@@ -1889,6 +1968,7 @@ def main() -> int:
             parent_pool_fraction=args.parent_pool_fraction,
             stagnation_patience=args.stagnation_patience,
             stagnation_mutation_boost=args.stagnation_mutation_boost,
+            fourier_mode=args.fourier_mode,
             seed_pool=seed_pool,
             seed=args.seed + 10000,
             saturn_repo_root=str(saturn_repo_root),

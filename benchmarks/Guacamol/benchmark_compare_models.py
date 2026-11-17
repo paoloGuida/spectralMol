@@ -68,6 +68,8 @@ PREFERRED_SCORE_COLUMNS = (
     "sum",
 )
 
+FOURIER_MODE_CHOICES = ("full-spectrum", "low-only", "high-only", "random-matrix")
+
 
 @dataclass
 class ModelSpec:
@@ -133,6 +135,15 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=int(getattr(cfg, "LOCAL_EVO_STAGNATION_MUTATION_BOOST", 2)),
         help="Extra mutation depth when local_evolution stagnates.",
+    )
+    p.add_argument(
+        "--fourier-mode",
+        default="full-spectrum",
+        choices=FOURIER_MODE_CHOICES,
+        help=(
+            "Ablation mode label passed to local_evolution runs. "
+            "Supports full-spectrum, low-only, high-only, random-matrix."
+        ),
     )
     p.add_argument(
         "--seed-smiles-file",
@@ -316,6 +327,19 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def resolve_local_evolution_fourier_mode(model_name: str, requested_mode: str) -> str:
+    lowered = model_name.strip().lower()
+    if lowered.endswith("_low_only") or lowered.endswith("-low-only"):
+        return "low-only"
+    if lowered.endswith("_high_only") or lowered.endswith("-high-only"):
+        return "high-only"
+    if lowered.endswith("_random_matrix") or lowered.endswith("-random-matrix"):
+        return "random-matrix"
+    if lowered.endswith("_full_spectrum") or lowered.endswith("-full-spectrum"):
+        return "full-spectrum"
+    return requested_mode
+
+
 def render_builtin_local_evolution_command(
     python_bin: str,
     repo_root: Path,
@@ -333,6 +357,7 @@ def render_builtin_local_evolution_command(
     parent_pool_fraction: float,
     stagnation_patience: int,
     stagnation_mutation_boost: int,
+    fourier_mode: str,
     seed_smiles_file: str,
     seed_pool_size: int,
     seed: int,
@@ -360,6 +385,8 @@ def render_builtin_local_evolution_command(
         str(stagnation_patience),
         "--stagnation-mutation-boost",
         str(stagnation_mutation_boost),
+        "--fourier-mode",
+        str(fourier_mode),
         "--seed-smiles-file",
         seed_smiles_file,
         "--seed-pool-size",
@@ -1226,6 +1253,7 @@ def main() -> int:
     runtime_rows: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     jobs: list[dict[str, Any]] = []
+    fourier_mode_by_model: dict[str, str] = {}
 
     for model in selected_models:
         if model not in model_specs:
@@ -1250,6 +1278,8 @@ def main() -> int:
             shared_init_path = shared_init_files.get(int(seed), seed_smiles_file)
 
             if spec.type == "builtin_local_evolution":
+                effective_fourier_mode = resolve_local_evolution_fourier_mode(model, args.fourier_mode)
+                fourier_mode_by_model[model] = effective_fourier_mode
                 cmd = render_builtin_local_evolution_command(
                     python_bin=python_bin,
                     repo_root=repo_root,
@@ -1267,6 +1297,7 @@ def main() -> int:
                     parent_pool_fraction=args.local_evo_parent_pool_fraction,
                     stagnation_patience=args.local_evo_stagnation_patience,
                     stagnation_mutation_boost=args.local_evo_stagnation_mutation_boost,
+                    fourier_mode=effective_fourier_mode,
                     seed_smiles_file=str(shared_init_path) if args.equal_initial_population else str(seed_smiles_file),
                     seed_pool_size=(args.population_size if args.equal_initial_population else args.seed_pool_size),
                     seed=seed,
@@ -1379,6 +1410,8 @@ def main() -> int:
         "local_evo_parent_pool_fraction": float(args.local_evo_parent_pool_fraction),
         "local_evo_stagnation_patience": int(args.local_evo_stagnation_patience),
         "local_evo_stagnation_mutation_boost": int(args.local_evo_stagnation_mutation_boost),
+        "fourier_mode_requested": str(args.fourier_mode),
+        "fourier_mode_by_model": fourier_mode_by_model,
         "bootstrap_scoring_envs": bool(args.bootstrap_scoring_envs),
         "scoring_env_clone_from": str(args.scoring_env_clone_from),
     }
